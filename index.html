@@ -1,0 +1,3022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FlavorWorld — Taste Every Corner of Earth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+JP:wght@400;600&family=Noto+Sans+Arabic:wght@400;600&display=swap" rel="stylesheet"/>
+
+<!-- ══ FIREBASE SDK ══ -->
+<script type="module">
+// ─────────────────────────────────────────────────────────────
+// 🔥 FIREBASE CONFIG — Same config as admin.html
+// Get it from: Firebase Console → Project Settings → Your Apps
+// ─────────────────────────────────────────────────────────────
+import { initializeApp }  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, getDocs, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ──────────────────────────────────────────────
+// PASTE YOUR FIREBASE CONFIG BELOW ↓
+// ──────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey:            "AIzaSyCWt7rja5yKr7Ffwc7YhFdWJNoUMj54o-M",
+  authDomain:        "falvorworld.firebaseapp.com",
+  databaseURL:       "https://falvorworld-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "falvorworld",
+  storageBucket:     "falvorworld.firebasestorage.app",
+  messagingSenderId: "120692419636",
+  appId:             "1:120692419636:web:70f68ecdb7b7e66a09ee61"
+};
+// ──────────────────────────────────────────────
+
+try {
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  // Load dishes from Firestore once page is ready
+  window.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const snap = await getDocs(collection(db, 'dishes'));
+      const fsDishes = snap.docs.map(d => d.data());
+      if (fsDishes.length > 0) {
+        // Replace hardcoded DISHES with Firestore data
+        window.FIREBASE_DISHES = fsDishes;
+        console.log(`%c🔥 Loaded ${fsDishes.length} dishes from Firebase`, 'color:#e8a838;font-weight:bold');
+      }
+    } catch(e) {
+      console.warn('Firebase load skipped (using default dishes):', e.message);
+    }
+  });
+
+  // Live listener — auto-updates when admin imports new dishes
+  onSnapshot(collection(db, 'dishes'), snap => {
+    if (!snap.empty) {
+      window.FIREBASE_DISHES = snap.docs.map(d => d.data());
+      // Refresh dish grid if already loaded
+      if (typeof buildDishes === 'function') buildDishes();
+      if (typeof buildFeatured === 'function') buildFeatured();
+    }
+  });
+
+  window._fbConnected = true;
+} catch(e) {
+  console.warn('Firebase init skipped:', e.message);
+}
+</script>
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg2: #111111;
+  --bg3: #1a1a1a;
+  --card: #161616;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f0ece4;
+  --text2: #a09890;
+  --text3: #6b6560;
+  --accent: #e8a838;
+  --accent2: #c4502a;
+  --accent3: #4a9e7f;
+  --red: #e05252;
+  --green: #5ba85b;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --transition: 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+}
+::selection { background: var(--accent); color: #000; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+
+/* ===== LOADER ===== */
+#loader {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 20px;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+#loader.hide { opacity: 0; visibility: hidden; }
+.loader-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.8rem; font-weight: 900;
+  color: var(--accent);
+  letter-spacing: -1px;
+}
+.loader-bar {
+  width: 200px; height: 2px;
+  background: var(--bg3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.loader-bar-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--accent2), var(--accent));
+  border-radius: 2px;
+  animation: load 1.8s ease forwards;
+}
+@keyframes load { to { width: 100%; } }
+
+/* ===== NAVBAR ===== */
+nav {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 0 48px;
+  height: 68px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(10,10,10,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  transition: var(--transition);
+}
+.nav-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem; font-weight: 900;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+  cursor: pointer;
+}
+.nav-logo span { color: var(--text); }
+.nav-links {
+  display: flex; gap: 6px;
+  list-style: none;
+}
+.nav-links a {
+  color: var(--text2); text-decoration: none;
+  padding: 6px 14px; border-radius: 20px;
+  font-size: 0.875rem; font-weight: 500;
+  transition: var(--transition);
+  cursor: pointer;
+}
+.nav-links a:hover { color: var(--text); background: var(--bg3); }
+.nav-right { display: flex; align-items: center; gap: 12px; }
+.lang-btn {
+  background: var(--bg3); border: 1px solid var(--border2);
+  color: var(--text2); padding: 6px 14px;
+  border-radius: 20px; font-size: 0.8rem;
+  cursor: pointer; transition: var(--transition);
+  display: flex; align-items: center; gap: 6px;
+}
+.lang-btn:hover { color: var(--text); border-color: var(--border2); }
+.search-btn {
+  background: var(--bg3); border: 1px solid var(--border2);
+  color: var(--text2); padding: 8px 16px;
+  border-radius: 24px; font-size: 0.85rem;
+  cursor: pointer; transition: var(--transition);
+  display: flex; align-items: center; gap: 8px;
+  width: 220px;
+}
+.search-btn:hover { border-color: var(--accent); color: var(--text); }
+.search-btn kbd {
+  margin-left: auto;
+  background: var(--bg2); border: 1px solid var(--border);
+  padding: 1px 6px; border-radius: 4px;
+  font-size: 0.7rem; font-family: inherit;
+}
+
+/* ===== HERO — CINEMATIC SPLIT ===== */
+.hero {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  position: relative; overflow: hidden;
+  padding-top: 68px;
+}
+/* Left panel — content */
+.hero-left {
+  display: flex; flex-direction: column;
+  justify-content: center;
+  padding: 80px 60px 80px 72px;
+  position: relative; z-index: 2;
+  background: var(--bg);
+}
+.hero-left::after {
+  content: '';
+  position: absolute; right: -1px; top: 0; bottom: 0; width: 1px;
+  background: linear-gradient(to bottom, transparent, var(--border2) 30%, var(--border2) 70%, transparent);
+}
+/* Right panel — photo mosaic */
+.hero-right {
+  position: relative; overflow: hidden;
+}
+.hero-mosaic {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  height: 100%; gap: 3px;
+}
+.mosaic-cell {
+  overflow: hidden; position: relative;
+}
+.mosaic-cell img {
+  width: 100%; height: 100%; object-fit: cover;
+  display: block;
+  transition: transform 8s ease;
+  filter: brightness(0.82) saturate(1.1);
+}
+.mosaic-cell:hover img { transform: scale(1.08); filter: brightness(0.9) saturate(1.2); }
+.mosaic-cell.tall { grid-row: span 2; }
+/* Gradient overlay on right panel */
+.hero-right::before {
+  content: '';
+  position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(to right, var(--bg) 0%, transparent 8%),
+              linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, transparent 20%);
+  pointer-events: none;
+}
+/* Floating cuisine pill on mosaic */
+.hero-cuisine-pill {
+  position: absolute; bottom: 28px; left: 28px; z-index: 3;
+  background: rgba(10,10,10,0.85); backdrop-filter: blur(12px);
+  border: 1px solid var(--border2);
+  border-radius: 50px; padding: 10px 18px;
+  display: flex; align-items: center; gap: 10px;
+  animation: pillPulse 4s ease infinite;
+}
+@keyframes pillPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(232,168,56,0); }
+  50% { box-shadow: 0 0 0 6px rgba(232,168,56,0.08); }
+}
+.hero-cuisine-pill-flag { font-size: 1.2rem; }
+.hero-cuisine-pill-text { font-size: 0.8rem; color: var(--text2); }
+.hero-cuisine-pill-text strong { color: var(--accent); display: block; font-size: 0.85rem; }
+/* Live counter badge */
+.hero-live-badge {
+  position: absolute; top: 24px; right: 24px; z-index: 3;
+  background: rgba(10,10,10,0.8); backdrop-filter: blur(8px);
+  border: 1px solid var(--border2); border-radius: 12px;
+  padding: 10px 16px; text-align: center;
+}
+.hero-live-badge .num {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem; font-weight: 900; color: var(--accent); display: block;
+}
+.hero-live-badge .lbl { font-size: 0.7rem; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; }
+
+/* Content styles */
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--accent);
+  margin-bottom: 24px;
+}
+.hero-eyebrow::before {
+  content: ''; width: 24px; height: 2px; background: var(--accent); border-radius: 1px;
+}
+.hero-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.6rem, 4.5vw, 5.2rem);
+  font-weight: 900; line-height: 1.02;
+  letter-spacing: -2px;
+  animation: fadeUp 0.8s ease forwards;
+  animation-delay: 0.2s; opacity: 0;
+}
+.hero-title em { font-style: italic; color: var(--accent); }
+.hero-title .line2 { display: block; color: var(--text2); font-weight: 400; font-size: 0.9em; }
+.hero-sub {
+  font-size: 1rem; color: var(--text2);
+  line-height: 1.75; margin-top: 20px; max-width: 400px;
+  animation: fadeUp 0.8s ease forwards;
+  animation-delay: 0.35s; opacity: 0;
+}
+.hero-ctas {
+  display: flex; gap: 10px; margin-top: 36px; flex-wrap: wrap;
+  animation: fadeUp 0.8s ease forwards;
+  animation-delay: 0.5s; opacity: 0;
+}
+.btn-primary {
+  background: var(--accent); color: #000;
+  border: none; padding: 14px 26px;
+  border-radius: 50px; font-size: 0.9rem;
+  font-weight: 700; cursor: pointer;
+  transition: var(--transition);
+  font-family: 'DM Sans', sans-serif;
+  display: flex; align-items: center; gap: 8px;
+}
+.btn-primary:hover { background: #f0b840; transform: translateY(-2px); }
+.btn-secondary {
+  background: transparent; color: var(--text);
+  border: 1px solid var(--border2); padding: 14px 26px;
+  border-radius: 50px; font-size: 0.9rem;
+  font-weight: 500; cursor: pointer;
+  transition: var(--transition);
+  font-family: 'DM Sans', sans-serif;
+}
+.btn-secondary:hover { background: var(--bg3); }
+/* Stats row */
+.hero-stats {
+  display: flex; gap: 32px; margin-top: 48px;
+  padding-top: 32px; border-top: 1px solid var(--border);
+  animation: fadeUp 0.8s ease forwards;
+  animation-delay: 0.65s; opacity: 0;
+}
+.hero-stat { flex: 1; }
+.hero-stat strong {
+  display: block;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.9rem; font-weight: 900; color: var(--text);
+  line-height: 1;
+}
+.hero-stat span { font-size: 0.75rem; color: var(--text3); margin-top: 4px; display: block; }
+.hero-stat-divider {
+  width: 1px; background: var(--border);
+  align-self: stretch;
+}
+/* Scroll hint */
+.hero-scroll {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 40px; color: var(--text3); font-size: 0.78rem;
+  animation: fadeUp 0.8s ease forwards;
+  animation-delay: 0.8s; opacity: 0;
+  cursor: pointer;
+}
+.scroll-line {
+  width: 32px; height: 1px; background: var(--text3);
+  position: relative; overflow: hidden;
+}
+.scroll-line::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--accent);
+  animation: scanLine 2s ease infinite;
+}
+@keyframes scanLine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+/* Floating elements — removed, replaced by mosaic */
+.hero-floats { display: none; }
+.hero-bg { display: none; }
+.hero-grain { display: none; }
+.hero-badge { display: none; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== SCROLLING TICKER ===== */
+.ticker-wrap {
+  overflow: hidden; border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  padding: 14px 0;
+}
+.ticker {
+  display: flex; gap: 0; width: max-content;
+  animation: ticker 30s linear infinite;
+}
+.ticker:hover { animation-play-state: paused; }
+.ticker-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 32px; white-space: nowrap;
+  font-size: 0.85rem; color: var(--text2);
+  font-weight: 400;
+}
+.ticker-item span { color: var(--accent); font-size: 1rem; }
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* ===== SECTION COMMON ===== */
+section { padding: 96px 48px; }
+.section-label {
+  font-size: 0.75rem; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--accent);
+  font-weight: 600; margin-bottom: 16px;
+}
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 800; line-height: 1.15;
+  letter-spacing: -1px; margin-bottom: 12px;
+}
+.section-sub { color: var(--text2); max-width: 520px; line-height: 1.7; font-size: 0.95rem; }
+.section-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 48px; flex-wrap: wrap; gap: 20px; }
+.see-all {
+  color: var(--accent); font-size: 0.875rem;
+  background: none; border: 1px solid rgba(232,168,56,0.3);
+  padding: 8px 20px; border-radius: 20px;
+  cursor: pointer; transition: var(--transition);
+  font-family: 'DM Sans', sans-serif;
+}
+.see-all:hover { background: rgba(232,168,56,0.1); }
+
+/* ===== CUISINE GRID ===== */
+#cuisines { background: var(--bg); }
+.cuisine-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+.cuisine-card {
+  position: relative; border-radius: var(--radius);
+  overflow: hidden; cursor: pointer;
+  aspect-ratio: 4/3;
+  transition: var(--transition);
+  border: 1px solid var(--border);
+}
+.cuisine-card:hover { transform: translateY(-6px) scale(1.02); border-color: var(--border2); }
+.cuisine-card img {
+  width: 100%; height: 100%; object-fit: cover;
+  display: block; transition: transform 0.6s ease;
+  filter: brightness(0.65);
+}
+.cuisine-card:hover img { transform: scale(1.1); filter: brightness(0.5); }
+.cuisine-card-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%);
+  display: flex; flex-direction: column;
+  justify-content: flex-end; padding: 16px;
+}
+.cuisine-flag { font-size: 1.8rem; margin-bottom: 4px; }
+.cuisine-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem; font-weight: 700; color: #fff;
+}
+.cuisine-count { font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-top: 2px; }
+.cuisine-card .cuisine-hover {
+  position: absolute; inset: 0; opacity: 0;
+  background: rgba(232,168,56,0.15);
+  display: flex; align-items: center; justify-content: center;
+  transition: var(--transition);
+}
+.cuisine-card:hover .cuisine-hover { opacity: 1; }
+.cuisine-hover-text { color: var(--accent); font-weight: 600; font-size: 0.9rem; }
+
+/* ===== COURSE TABS ===== */
+#courses { background: var(--bg2); }
+.course-tabs {
+  display: flex; gap: 8px; margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+.course-tab {
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text2); padding: 10px 22px;
+  border-radius: 50px; font-size: 0.875rem;
+  cursor: pointer; transition: var(--transition);
+  font-family: 'DM Sans', sans-serif;
+  display: flex; align-items: center; gap: 8px;
+}
+.course-tab:hover { color: var(--text); border-color: var(--border2); }
+.course-tab.active {
+  background: var(--accent); color: #000;
+  border-color: var(--accent); font-weight: 600;
+}
+.dishes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+.dish-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  cursor: pointer; transition: var(--transition);
+  position: relative;
+}
+.dish-card:hover { transform: translateY(-8px); border-color: var(--border2); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+.dish-card-img {
+  width: 100%; height: 200px; object-fit: cover;
+  display: block; transition: transform 0.5s ease;
+  filter: brightness(0.9);
+}
+.dish-card:hover .dish-card-img { transform: scale(1.06); filter: brightness(1); }
+.dish-card-body { padding: 18px; }
+.dish-meta {
+  display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;
+}
+.tag {
+  font-size: 0.7rem; font-weight: 600;
+  padding: 3px 10px; border-radius: 20px;
+  letter-spacing: 0.3px;
+}
+.tag-cuisine { background: rgba(232,168,56,0.12); color: var(--accent); }
+.tag-course { background: rgba(74,158,127,0.12); color: var(--accent3); }
+.tag-veg { background: rgba(91,168,91,0.12); color: var(--green); }
+.tag-time { background: rgba(255,255,255,0.06); color: var(--text2); }
+.dish-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem; font-weight: 700; color: var(--text);
+  margin-bottom: 6px; line-height: 1.3;
+}
+.dish-desc { font-size: 0.82rem; color: var(--text2); line-height: 1.6; margin-bottom: 14px; }
+.dish-card-footer {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding-top: 14px; border-top: 1px solid var(--border);
+}
+.dish-rating { display: flex; align-items: center; gap: 4px; font-size: 0.82rem; color: var(--text2); }
+.dish-rating .stars { color: var(--accent); letter-spacing: -2px; }
+.dish-actions { display: flex; gap: 6px; }
+.icon-btn {
+  width: 32px; height: 32px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; transition: var(--transition);
+  flex-shrink: 0;
+}
+.icon-btn:hover { background: rgba(232,168,56,0.15); border-color: rgba(232,168,56,0.4); }
+.icon-btn.liked { color: #e05252; border-color: #e05252; background: rgba(224,82,82,0.1); }
+.dish-card .new-badge {
+  position: absolute; top: 12px; left: 12px;
+  background: var(--accent); color: #000;
+  font-size: 0.65rem; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+
+/* ===== FEATURED DISH ===== */
+#featured { background: var(--bg); }
+.featured-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 2px; border-radius: var(--radius);
+  overflow: hidden;
+}
+.featured-main {
+  position: relative; cursor: pointer;
+  overflow: hidden; height: 520px;
+}
+.featured-main img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.8s ease;
+  filter: brightness(0.6);
+}
+.featured-main:hover img { transform: scale(1.06); }
+.featured-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 50%);
+  padding: 36px;
+  display: flex; flex-direction: column;
+  justify-content: flex-end;
+}
+.featured-sub-grid {
+  display: grid; grid-template-rows: 1fr 1fr;
+  gap: 2px; height: 520px;
+}
+.featured-sub {
+  position: relative; cursor: pointer; overflow: hidden;
+}
+.featured-sub img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.6s ease; filter: brightness(0.6);
+}
+.featured-sub:hover img { transform: scale(1.08); }
+.featured-sub-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%);
+  padding: 20px; display: flex; flex-direction: column; justify-content: flex-end;
+}
+.featured-label { color: var(--accent); font-size: 0.75rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+.featured-title { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 900; color: #fff; line-height: 1.1; margin-bottom: 12px; }
+.featured-sub-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; color: #fff; }
+.featured-meta { display: flex; gap: 16px; font-size: 0.8rem; color: rgba(255,255,255,0.7); margin-top: 6px; }
+
+/* ===== INGREDIENTS SECTION ===== */
+#ingredients { background: var(--bg2); }
+.ingredients-header { margin-bottom: 36px; }
+.ingredients-search {
+  position: relative; margin-bottom: 32px;
+}
+.ingredients-search input {
+  width: 100%; padding: 16px 24px 16px 52px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 50px; color: var(--text);
+  font-size: 0.95rem; font-family: 'DM Sans', sans-serif;
+  outline: none; transition: var(--transition);
+}
+.ingredients-search input:focus { border-color: var(--accent); }
+.ingredients-search input::placeholder { color: var(--text3); }
+.search-icon {
+  position: absolute; left: 20px; top: 50%; transform: translateY(-50%);
+  font-size: 1.1rem; color: var(--text3);
+}
+.ingredients-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+.ingredient-chip {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px 12px;
+  text-align: center; cursor: pointer; transition: var(--transition);
+  position: relative; overflow: hidden;
+}
+.ingredient-chip:hover { border-color: var(--accent); transform: translateY(-4px); background: rgba(232,168,56,0.06); }
+.ingredient-chip img {
+  width: 60px; height: 60px; object-fit: cover;
+  border-radius: 50%; margin: 0 auto 8px;
+  display: block; border: 2px solid var(--border2);
+}
+.ingredient-chip-name { font-size: 0.8rem; font-weight: 600; color: var(--text); }
+.ingredient-chip-count { font-size: 0.7rem; color: var(--text3); margin-top: 2px; }
+.ingredient-chip .chip-glow {
+  position: absolute; inset: 0; opacity: 0;
+  background: radial-gradient(circle at center, rgba(232,168,56,0.15), transparent 70%);
+  transition: var(--transition);
+}
+.ingredient-chip:hover .chip-glow { opacity: 1; }
+
+/* ===== MOCKTAILS & BEVERAGES ===== */
+#beverages { background: var(--bg); }
+.beverages-scroll {
+  display: flex; gap: 20px; overflow-x: auto;
+  padding-bottom: 16px; scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.beverages-scroll::-webkit-scrollbar { display: none; }
+.bev-card {
+  min-width: 240px; background: var(--card);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; cursor: pointer;
+  transition: var(--transition); scroll-snap-align: start;
+  flex-shrink: 0;
+}
+.bev-card:hover { transform: translateY(-6px); border-color: var(--border2); }
+.bev-card-img { width: 100%; height: 220px; object-fit: cover; display: block; transition: transform 0.5s; }
+.bev-card:hover .bev-card-img { transform: scale(1.07); }
+.bev-card-body { padding: 16px; }
+.bev-type { font-size: 0.7rem; color: var(--accent3); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.bev-name { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+.bev-detail { font-size: 0.78rem; color: var(--text2); }
+
+/* ===== RECIPE MODAL — FULL SCREEN ===== */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.modal-backdrop.open { opacity: 1; visibility: visible; }
+
+/* ── RECIPE MODAL ── */
+.recipe-modal {
+  display: flex; flex-direction: column;
+  width: min(96vw, 1080px);
+  height: min(94vh, 860px);
+  background: var(--bg2);
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--border2);
+  transform: translateY(32px) scale(0.97);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  position: relative;
+}
+.modal-backdrop.open .recipe-modal { transform: translateY(0) scale(1); }
+
+/* ── MODAL TOP BAR ── */
+.modal-topbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+  background: transparent;
+  position: absolute; top: 0; left: 0; right: 0;
+  z-index: 30;
+}
+.modal-back-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 13px 7px 8px;
+  background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.15);
+  backdrop-filter: blur(8px);
+  border-radius: 20px; color: #fff;
+  font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; transition: var(--transition);
+  font-family: 'DM Sans', sans-serif; flex-shrink: 0;
+  white-space: nowrap;
+}
+.modal-back-btn:hover { background: rgba(0,0,0,0.75); }
+.modal-back-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+/* topbar title hidden — we show title below hero image */
+.modal-topbar-title { display: none; }
+.modal-topbar-tags { display: none; }
+
+/* ── MODAL BODY — two columns ── */
+.modal-body-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* LEFT PANEL */
+.recipe-left {
+  display: flex; flex-direction: column;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+/* Hero image — full bleed, no black border */
+.recipe-hero-wrap {
+  position: relative; flex-shrink: 0;
+  overflow: hidden;
+}
+.recipe-hero-img {
+  width: 100%; height: 240px; object-fit: cover;
+  display: block;
+}
+/* Subtle gradient only at the very bottom edge to blend into content */
+.recipe-hero-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.25) 0%,
+    transparent 35%,
+    transparent 55%,
+    var(--bg2) 100%
+  );
+  pointer-events: none;
+}
+/* Title sits inside the hero wrap, at the bottom over the image */
+.recipe-hero-title-wrap {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 40px 16px 14px;
+  background: linear-gradient(to top, rgba(0,0,0,0.82) 0%, transparent 100%);
+}
+.recipe-hero-dish-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.35rem; font-weight: 900;
+  color: #fff; line-height: 1.2;
+  word-break: break-word;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.recipe-hero-meta {
+  display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px;
+}
+
+.recipe-left-content {
+  padding: 12px 16px 20px;
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin; scrollbar-color: var(--bg3) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.recipe-left-content::-webkit-scrollbar { width: 3px; }
+.recipe-left-content::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 2px; }
+
+/* LEFT PANEL TITLE — now inside hero wrap */
+.recipe-left-title { display: none; }
+
+/* RIGHT PANEL */
+.recipe-right {
+  display: flex; flex-direction: column;
+  background: var(--card); overflow: hidden;
+}
+
+/* Tab nav — no excess borders */
+.recipe-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+  flex-shrink: 0;
+  overflow-x: auto; scrollbar-width: none;
+  padding: 0 14px;
+}
+.recipe-tabs::-webkit-scrollbar { display: none; }
+.recipe-tab-btn {
+  padding: 13px 15px; font-size: 0.8rem; font-weight: 600;
+  color: var(--text3); cursor: pointer; border: none;
+  background: none; font-family: 'DM Sans', sans-serif;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: var(--transition); white-space: nowrap;
+}
+.recipe-tab-btn:hover { color: var(--text); }
+.recipe-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Tab content — scrollable */
+.recipe-tab-scroller {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin; scrollbar-color: var(--bg3) transparent;
+}
+.recipe-tab-scroller::-webkit-scrollbar { width: 4px; }
+.recipe-tab-scroller::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 2px; }
+.recipe-tab-panel { display: none; padding: 18px; }
+.recipe-tab-panel.active { display: block; }
+
+/* ===== SERVING SIZE SCALER ===== */
+.serving-scaler {
+  display: flex; align-items: center;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 50px; overflow: hidden;
+  width: fit-content; margin-bottom: 14px;
+}
+.serving-btn {
+  width: 34px; height: 34px; background: none; border: none;
+  color: var(--text); font-size: 1.1rem; cursor: pointer;
+  transition: var(--transition); display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0;
+  font-family: inherit;
+}
+.serving-btn:hover { background: rgba(232,168,56,0.15); color: var(--accent); }
+.serving-display {
+  display: flex; align-items: center; gap: 5px;
+  padding: 0 12px; font-size: 0.82rem; font-weight: 700;
+  color: var(--text); white-space: nowrap;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border); height: 34px;
+}
+.serving-display span { color: var(--accent); font-size: 0.95rem; font-weight: 800; }
+.serving-presets {
+  display: flex; gap: 5px; margin-bottom: 12px; flex-wrap: wrap;
+}
+.serving-preset {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 11px;
+  font-size: 0.72rem; font-weight: 600; cursor: pointer;
+  transition: var(--transition); color: var(--text2);
+  font-family: 'DM Sans', sans-serif;
+}
+.serving-preset:hover { border-color: var(--accent); color: var(--accent); }
+.serving-preset.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+/* Ingredient modal */
+.ing-modal-full {
+  background: var(--card); width: 100%; max-width: 760px;
+  max-height: 88vh; overflow-y: auto; border-radius: 18px;
+  border: 1px solid var(--border2);
+  transform: translateY(32px) scale(0.97);
+  transition: transform 0.32s cubic-bezier(0.4,0,0.2,1);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin; scrollbar-color: var(--bg3) transparent;
+}
+.modal-backdrop.open .ing-modal-full { transform: translateY(0) scale(1); }
+.ing-modal-full::-webkit-scrollbar { width: 4px; }
+.ing-modal-full::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 2px; }
+
+/* Close button — used only on ingredient modal */
+.modal-close {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(0,0,0,0.6); border: 1px solid var(--border2);
+  color: #fff; font-size: 0.85rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: var(--transition); z-index: 50;
+}
+.modal-close:hover { background: rgba(255,255,255,0.15); transform: scale(1.08); }
+
+/* ===== MOBILE — bottom sheet ===== */
+@media (max-width: 680px) {
+  .modal-backdrop { align-items: flex-end; padding: 0; }
+  .recipe-modal {
+    width: 100%; height: 96vh; max-height: 96vh;
+    border-radius: 18px 18px 0 0; border-bottom: none;
+    transform: translateY(100%);
+    flex-direction: column;
+  }
+  .modal-backdrop.open .recipe-modal { transform: translateY(0); box-shadow: 0 -8px 40px rgba(0,0,0,0.5); }
+  /* Drag handle — on the hero image itself */
+  .recipe-hero-wrap::before {
+    content: ''; position: absolute; top: 10px; left: 50%;
+    transform: translateX(-50%); width: 36px; height: 4px;
+    background: rgba(255,255,255,0.35); border-radius: 2px; z-index: 40;
+  }
+  .modal-body-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    overflow: hidden; height: 100%;
+  }
+  .recipe-left {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 50vh; flex-shrink: 0;
+    overflow: hidden;
+  }
+  .recipe-hero-img { height: 200px; }
+  .recipe-hero-title-wrap { padding: 30px 14px 12px; }
+  .recipe-hero-dish-name { font-size: 1.2rem; }
+  .recipe-left-content { padding: 8px 14px 12px; }
+  .recipe-quick-info { grid-template-columns: repeat(3, 1fr) !important; gap: 6px; }
+  .rqi-item { padding: 8px 10px; }
+  .recipe-right { min-height: 0; flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  .recipe-tab-scroller { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .recipe-tab-panel { padding: 12px; }
+  .ingredients-full-grid { grid-template-columns: 1fr 1fr !important; gap: 8px; }
+  .ing-card-img-wrap { height: 70px !important; }
+  .ing-card-name { font-size: 0.76rem !important; }
+  .ing-card-sub { font-size: 0.58rem !important; }
+  .recipe-left-desc { display: none; }
+  .recipe-actions { gap: 5px; }
+  .recipe-action-btn { padding: 8px 4px; font-size: 0.7rem; }
+  .nutrition-bar { display: none; }
+  .serving-presets { gap: 4px; }
+  .serving-preset { padding: 3px 9px; font-size: 0.68rem; }
+  .rqi-label { font-size: 0.58rem; }
+  .rqi-val { font-size: 0.88rem; }
+}
+.recipe-left-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.7rem; font-weight: 900;
+  line-height: 1.15; margin-bottom: 10px;
+}
+.recipe-left-desc {
+  font-size: 0.85rem; color: var(--text2);
+  line-height: 1.75; margin-bottom: 20px;
+}
+/* Quick info grid */
+.recipe-quick-info {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; margin-bottom: 22px;
+}
+.rqi-item {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.rqi-label { font-size: 0.65rem; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; font-weight: 600; }
+.rqi-val { font-size: 1rem; font-weight: 700; color: var(--text); }
+.rqi-val.accent { color: var(--accent); }
+/* Nutrition */
+.nutrition-bar { margin-bottom: 22px; }
+.nutrition-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 0; border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+.nutrition-row:last-child { border: none; }
+.nutrition-name { color: var(--text2); }
+.nutrition-val { color: var(--text); font-weight: 600; }
+.nutrition-fill-wrap {
+  flex: 1; height: 4px; background: var(--bg3);
+  border-radius: 2px; margin: 0 12px;
+  overflow: hidden;
+}
+.nutrition-fill { height: 100%; border-radius: 2px; }
+/* Rating row */
+.recipe-rating-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 18px;
+}
+.big-stars { color: var(--accent); font-size: 1.1rem; letter-spacing: -1px; }
+.rating-count { font-size: 0.8rem; color: var(--text3); }
+/* Action btns */
+.recipe-actions {
+  display: flex; gap: 8px; margin-top: 4px;
+}
+.recipe-action-btn {
+  flex: 1; padding: 11px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 12px; color: var(--text2); cursor: pointer;
+  font-size: 0.82rem; font-weight: 600; font-family: 'DM Sans', sans-serif;
+  transition: var(--transition); text-align: center;
+}
+.recipe-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+.recipe-action-btn.primary-btn {
+  background: var(--accent); color: #000;
+  border-color: var(--accent);
+}
+.recipe-action-btn.primary-btn:hover { background: #f0b840; }
+
+/* RIGHT PANEL — scrollable content */
+.recipe-right {
+  overflow-y: auto; scrollbar-width: thin;
+  scrollbar-color: var(--bg3) transparent;
+  background: var(--card);
+}
+.recipe-right::-webkit-scrollbar { width: 4px; }
+.recipe-right::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 2px; }
+
+/* INGREDIENTS TAB */
+.ingredients-section-title {
+  font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text3); font-weight: 600; margin-bottom: 16px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.ingredients-full-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin-bottom: 28px;
+}
+.ing-card {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 14px; padding: 12px;
+  display: flex; flex-direction: column; gap: 0;
+  cursor: pointer; transition: var(--transition);
+  position: relative; overflow: hidden;
+  align-items: stretch;
+}
+.ing-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.ing-card-img-wrap {
+  width: 100%; height: 88px; border-radius: 10px;
+  overflow: hidden; flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--bg2); margin-bottom: 10px;
+}
+.ing-card-img-wrap img {
+  width: 100%; height: 100%; object-fit: cover;
+  display: block; transition: transform 0.4s ease;
+}
+.ing-card:hover .ing-card-img-wrap img { transform: scale(1.08); }
+.ing-card-info { flex: 1; }
+.ing-card-name {
+  font-weight: 700; font-size: 0.82rem;
+  color: var(--text);
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.3;
+  margin-bottom: 3px;
+}
+.ing-card-qty {
+  font-size: 1rem; font-weight: 800;
+  color: var(--accent); margin: 2px 0 1px;
+  line-height: 1.2;
+}
+.ing-card-unit {
+  font-size: 0.68rem; color: var(--text3);
+  line-height: 1.4; margin-bottom: 4px;
+}
+.ing-card-sub {
+  font-size: 0.65rem; color: var(--accent3); font-weight: 600;
+  background: rgba(74,158,127,0.1); border: 1px solid rgba(74,158,127,0.2);
+  border-radius: 6px; padding: 3px 7px; margin-top: 5px;
+  display: none; line-height: 1.4;
+}
+.ing-card-sub.show { display: block; }
+.ing-card-link {
+  font-size: 0.65rem; color: var(--text3); font-weight: 500;
+  margin-top: 4px; opacity: 0; transition: var(--transition);
+}
+.ing-card:hover .ing-card-link { opacity: 1; }
+
+/* STEPS TAB */
+.recipe-step-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 18px; overflow: hidden;
+  margin-bottom: 16px; transition: var(--transition);
+  cursor: default;
+}
+.recipe-step-card:hover { border-color: var(--border2); }
+.recipe-step-card.active-step { border-color: var(--accent); }
+.step-img-wrap {
+  width: 100%; height: 200px; overflow: hidden; position: relative;
+}
+.step-img-wrap img {
+  width: 100%; height: 100%; object-fit: cover;
+  display: block; transition: transform 0.5s ease;
+}
+.recipe-step-card:hover .step-img-wrap img { transform: scale(1.05); }
+.step-img-gradient {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 80px;
+  background: linear-gradient(to top, var(--bg2), transparent);
+}
+.step-body { padding: 20px 24px; }
+.step-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+}
+.step-badge {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(232,168,56,0.15); border: 1px solid rgba(232,168,56,0.3);
+  color: var(--accent); display: flex; align-items: center;
+  justify-content: center; font-weight: 800; font-size: 0.85rem; flex-shrink: 0;
+}
+.step-title-text {
+  font-weight: 700; font-size: 0.9rem; color: var(--text);
+}
+.step-timer-pill {
+  margin-left: auto; background: rgba(74,158,127,0.1);
+  border: 1px solid rgba(74,158,127,0.25);
+  color: var(--accent3); font-size: 0.72rem; font-weight: 600;
+  padding: 3px 10px; border-radius: 20px;
+  display: flex; align-items: center; gap: 4px;
+  cursor: pointer; transition: var(--transition);
+  user-select: none;
+}
+.step-timer-pill:hover { background: rgba(74,158,127,0.2); }
+.step-timer-pill.running { background: rgba(232,168,56,0.15); color: var(--accent); border-color: rgba(232,168,56,0.3); }
+.step-instruction {
+  font-size: 0.9rem; color: var(--text2); line-height: 1.8;
+  margin-bottom: 14px;
+}
+.step-tip {
+  background: rgba(232,168,56,0.06); border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0; padding: 10px 14px;
+  font-size: 0.8rem; color: var(--text2); line-height: 1.6;
+}
+.step-tip strong { color: var(--accent); }
+
+/* TIPS TAB */
+.tips-grid { display: flex; flex-direction: column; gap: 12px; }
+.tip-card {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px;
+  display: flex; gap: 14px; align-items: flex-start;
+}
+.tip-icon {
+  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+}
+.tip-title { font-weight: 700; font-size: 0.88rem; margin-bottom: 4px; }
+.tip-text { font-size: 0.82rem; color: var(--text2); line-height: 1.65; }
+
+/* ===== LANGUAGE DROPDOWN ===== */
+.lang-dropdown {
+  position: absolute; top: calc(100% + 8px); right: 48px;
+  background: var(--card); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 8px;
+  min-width: 200px; z-index: 200;
+  opacity: 0; visibility: hidden; transform: translateY(-8px);
+  transition: all 0.2s ease;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.lang-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0); }
+.lang-option {
+  padding: 8px 12px; border-radius: 8px;
+  cursor: pointer; font-size: 0.83rem;
+  transition: var(--transition); color: var(--text2);
+  display: flex; align-items: center; gap: 8px;
+}
+.lang-option:hover { background: var(--bg3); color: var(--text); }
+.lang-option.active { color: var(--accent); background: rgba(232,168,56,0.08); }
+
+/* ===== SEARCH MODAL ===== */
+.search-modal {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);
+  padding: 80px 24px 24px;
+  opacity: 0; visibility: hidden; transition: all 0.25s ease;
+}
+.search-modal.open { opacity: 1; visibility: visible; }
+.search-modal-input {
+  width: 100%; max-width: 700px; margin: 0 auto;
+  display: flex; align-items: center; gap: 16px;
+  background: var(--card); border: 1px solid var(--border2);
+  border-radius: 16px; padding: 18px 24px;
+}
+.search-modal-input input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text); font-size: 1.2rem; font-family: 'DM Sans', sans-serif;
+}
+.search-modal-input input::placeholder { color: var(--text3); }
+.search-close-btn {
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text2); border-radius: 8px; padding: 4px 10px;
+  cursor: pointer; font-size: 0.8rem; font-family: inherit;
+}
+.search-results {
+  max-width: 700px; margin: 20px auto 0;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.search-result-item {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px 18px;
+  cursor: pointer; transition: var(--transition);
+  display: flex; align-items: center; gap: 14px;
+}
+.search-result-item:hover { border-color: var(--accent); }
+.search-result-item img { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; }
+.search-result-name { font-weight: 600; font-size: 0.95rem; }
+.search-result-meta { font-size: 0.78rem; color: var(--text2); margin-top: 2px; }
+
+/* ===== AI SECTION ===== */
+#ai-chef { background: var(--bg2); }
+.ai-card {
+  background: linear-gradient(135deg, rgba(232,168,56,0.08) 0%, rgba(196,80,42,0.05) 100%);
+  border: 1px solid rgba(232,168,56,0.2);
+  border-radius: 24px; padding: 48px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center;
+}
+.ai-ingredients-input {
+  display: flex; flex-direction: column; gap: 10px; margin-top: 24px;
+}
+.ai-ingredient-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.ai-tag {
+  background: rgba(232,168,56,0.15); border: 1px solid rgba(232,168,56,0.3);
+  color: var(--accent); padding: 5px 12px; border-radius: 20px;
+  font-size: 0.8rem; display: flex; align-items: center; gap: 6px;
+}
+.ai-tag-remove { cursor: pointer; opacity: 0.7; }
+.ai-input-row { display: flex; gap: 8px; }
+.ai-input-row input {
+  flex: 1; padding: 12px 18px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 50px; color: var(--text); font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem; outline: none; transition: var(--transition);
+}
+.ai-input-row input:focus { border-color: var(--accent); }
+.ai-input-row input::placeholder { color: var(--text3); }
+.ai-input-row button {
+  background: var(--accent); color: #000;
+  border: none; padding: 12px 20px; border-radius: 50px;
+  font-weight: 600; cursor: pointer; font-family: inherit; font-size: 0.9rem;
+  transition: var(--transition);
+}
+.ai-input-row button:hover { background: #f0b840; }
+.ai-result {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+  display: none;
+}
+.ai-result.show { display: block; }
+.ai-result-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+.ai-result-list { list-style: none; }
+.ai-result-list li {
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  font-size: 0.88rem; color: var(--text2);
+  display: flex; align-items: center; gap: 10px;
+}
+.ai-result-list li:last-child { border: none; }
+.ai-result-list li::before { content: '→'; color: var(--accent); font-weight: 600; }
+
+/* ===== FOOTER ===== */
+footer {
+  background: var(--bg2); border-top: 1px solid var(--border);
+  padding: 60px 48px 32px;
+}
+.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
+.footer-logo { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 900; color: var(--accent); margin-bottom: 12px; }
+.footer-desc { font-size: 0.85rem; color: var(--text2); line-height: 1.7; max-width: 280px; }
+.footer-col-title { font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); font-weight: 600; margin-bottom: 16px; }
+.footer-links { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.footer-links a { color: var(--text2); text-decoration: none; font-size: 0.875rem; transition: var(--transition); cursor: pointer; }
+.footer-links a:hover { color: var(--accent); }
+.footer-bottom { display: flex; justify-content: space-between; align-items: center; padding-top: 24px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+.footer-copy { font-size: 0.8rem; color: var(--text3); }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 900px) {
+  nav { padding: 0 24px; }
+  .nav-links { display: none; }
+  section { padding: 64px 24px; }
+  .hero { grid-template-columns: 1fr; min-height: auto; }
+  .hero-left { padding: 60px 28px 40px; order: 2; }
+  .hero-right { height: 55vw; min-height: 280px; order: 1; }
+  .hero-left::after { display: none; }
+  .featured-grid { grid-template-columns: 1fr; }
+  .featured-sub-grid { grid-template-rows: unset; grid-template-columns: 1fr 1fr; height: auto; }
+  .featured-main { height: 320px; }
+  .featured-sub { height: 200px; }
+  .ai-card { grid-template-columns: 1fr; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .hero-stats { gap: 20px; }
+  .hero-title { font-size: 2.4rem; }
+}
+@media (max-width: 600px) {
+  .footer-grid { grid-template-columns: 1fr; }
+  .section-header { flex-direction: column; align-items: flex-start; }
+  .hero-title { font-size: 2.8rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-logo">FlavorWorld</div>
+  <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+  <p style="font-size:0.8rem;color:var(--text3);">Loading world cuisines…</p>
+</div>
+
+<!-- NAVBAR -->
+<nav id="navbar">
+  <div class="nav-logo" onclick="scrollToTop()">Flavor<span>World</span></div>
+  <ul class="nav-links">
+    <li><a onclick="scrollTo('cuisines')">Cuisines</a></li>
+    <li><a onclick="scrollTo('courses')">Dishes</a></li>
+    <li><a onclick="scrollTo('ingredients')">Ingredients</a></li>
+    <li><a onclick="scrollTo('beverages')">Drinks</a></li>
+    <li><a onclick="scrollTo('ai-chef')">AI Chef ✨</a></li>
+  </ul>
+  <div class="nav-right">
+    <button class="search-btn" onclick="openSearch()">
+      <span>🔍</span> Search anything…
+      <kbd>/</kbd>
+    </button>
+    <button class="lang-btn" id="langToggle" onclick="toggleLang()">
+      <span id="currentLangFlag">🌐</span>
+      <span id="currentLangName">EN</span>
+    </button>
+  </div>
+</nav>
+
+<!-- LANGUAGE DROPDOWN -->
+<div class="lang-dropdown" id="langDropdown">
+  <div class="lang-option active" onclick="setLang('en')">🇬🇧 English</div>
+  <div class="lang-option" onclick="setLang('hi')">🇮🇳 हिन्दी</div>
+  <div class="lang-option" onclick="setLang('es')">🇪🇸 Español</div>
+  <div class="lang-option" onclick="setLang('fr')">🇫🇷 Français</div>
+  <div class="lang-option" onclick="setLang('ar')">🇸🇦 عربي</div>
+  <div class="lang-option" onclick="setLang('ja')">🇯🇵 日本語</div>
+  <div class="lang-option" onclick="setLang('zh')">🇨🇳 中文</div>
+  <div class="lang-option" onclick="setLang('de')">🇩🇪 Deutsch</div>
+  <div class="lang-option" onclick="setLang('pt')">🇧🇷 Português</div>
+  <div class="lang-option" onclick="setLang('ko')">🇰🇷 한국어</div>
+</div>
+
+<!-- SEARCH MODAL -->
+<div class="search-modal" id="searchModal">
+  <div class="search-modal-input">
+    <span style="font-size:1.2rem;">🔍</span>
+    <input type="text" id="searchInput" placeholder="Search dishes, cuisines, ingredients…" oninput="handleSearch(this.value)"/>
+    <button class="search-close-btn" onclick="closeSearch()">ESC</button>
+  </div>
+  <div class="search-results" id="searchResults"></div>
+</div>
+
+<!-- HERO -->
+<section class="hero" id="home">
+  <!-- LEFT: Content -->
+  <div class="hero-left">
+    <div class="hero-eyebrow" id="heroEyebrow">50+ World Cuisines · 5,200+ Recipes</div>
+    <h1 class="hero-title" id="heroTitle">
+      The World's<br/>
+      <em>Kitchens,</em>
+      <span class="line2">in Your Hands.</span>
+    </h1>
+    <p class="hero-sub" id="heroSub">From smoky Indian tandoors to Japanese ramen stalls — learn to cook authentic dishes from every corner of the planet.</p>
+    <div class="hero-ctas">
+      <button class="btn-primary" onclick="scrollTo('courses')" id="heroCta1">
+        <span>🍽️</span> Explore Dishes
+      </button>
+      <button class="btn-secondary" onclick="scrollTo('ai-chef')" id="heroCta2">✨ AI Chef</button>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <strong>5,200+</strong>
+        <span id="statDishes">Recipes</span>
+      </div>
+      <div class="hero-stat-divider"></div>
+      <div class="hero-stat">
+        <strong>50+</strong>
+        <span id="statCuisines">Cuisines</span>
+      </div>
+      <div class="hero-stat-divider"></div>
+      <div class="hero-stat">
+        <strong>400+</strong>
+        <span id="statIngredients">Ingredients</span>
+      </div>
+    </div>
+    <div class="hero-scroll" onclick="scrollTo('cuisines')">
+      <div class="scroll-line"></div>
+      Scroll to explore
+    </div>
+  </div>
+
+  <!-- RIGHT: Photo mosaic -->
+  <div class="hero-right">
+    <div class="hero-mosaic" id="heroMosaic">
+      <div class="mosaic-cell tall">
+        <img src="https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&q=85" loading="eager" alt="Butter Chicken"/>
+      </div>
+      <div class="mosaic-cell">
+        <img src="https://images.unsplash.com/photo-1617196034183-421b4040ed20?w=600&q=85" loading="eager" alt="Sushi"/>
+      </div>
+      <div class="mosaic-cell">
+        <img src="https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=600&q=85" loading="eager" alt="Pizza"/>
+      </div>
+      <div class="mosaic-cell tall">
+        <img src="https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=600&q=85" loading="eager" alt="Ramen"/>
+      </div>
+      <div class="mosaic-cell">
+        <img src="https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600&q=85" loading="eager" alt="Tacos"/>
+      </div>
+      <div class="mosaic-cell">
+        <img src="https://images.unsplash.com/photo-1551024601-bec78aea704b?w=600&q=85" loading="eager" alt="Churros"/>
+      </div>
+    </div>
+    <!-- Floating pill -->
+    <div class="hero-cuisine-pill">
+      <span class="hero-cuisine-pill-flag">🔥</span>
+      <div class="hero-cuisine-pill-text">
+        <strong>Trending Now</strong>
+        Butter Chicken · Indian
+      </div>
+    </div>
+    <!-- Live badge -->
+    <div class="hero-live-badge">
+      <span class="num" id="liveCount">847</span>
+      <span class="lbl">cooking today</span>
+    </div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker" id="ticker"></div>
+</div>
+
+<!-- CUISINES -->
+<section id="cuisines">
+  <div class="section-header">
+    <div>
+      <p class="section-label" id="cuisineLabel">Explore by Cuisine</p>
+      <h2 class="section-title" id="cuisineTitle">World Cuisines</h2>
+      <p class="section-sub" id="cuisineSub">From the spice markets of India to the trattorias of Italy</p>
+    </div>
+    <button class="see-all">See all 50+ cuisines →</button>
+  </div>
+  <div class="cuisine-grid" id="cuisineGrid"></div>
+</section>
+
+<!-- COURSES -->
+<section id="courses">
+  <div class="section-header">
+    <div>
+      <p class="section-label">Browse by Course</p>
+      <h2 class="section-title" id="courseTitle">All Dishes</h2>
+      <p class="section-sub" id="courseSub">Starters, mains, snacks, desserts and more</p>
+    </div>
+    <button class="see-all" id="coursesSeeAll">View all →</button>
+  </div>
+  <div class="course-tabs" id="courseTabs"></div>
+  <div class="dishes-grid" id="dishesGrid"></div>
+</section>
+
+<!-- FEATURED -->
+<section id="featured">
+  <div class="section-header">
+    <div>
+      <p class="section-label">Editor's Picks</p>
+      <h2 class="section-title">Featured Today</h2>
+    </div>
+  </div>
+  <div class="featured-grid" id="featuredGrid"></div>
+</section>
+
+<!-- INGREDIENTS -->
+<section id="ingredients">
+  <div class="section-header">
+    <div>
+      <p class="section-label">Discover</p>
+      <h2 class="section-title" id="ingTitle">Explore by Ingredient</h2>
+      <p class="section-sub" id="ingSub">Tap any ingredient to see all dishes that use it</p>
+    </div>
+  </div>
+  <div class="ingredients-search">
+    <span class="search-icon">🥬</span>
+    <input type="text" placeholder="Search ingredients…" oninput="filterIngredients(this.value)"/>
+  </div>
+  <div class="ingredients-grid" id="ingredientsGrid"></div>
+</section>
+
+<!-- BEVERAGES -->
+<section id="beverages">
+  <div class="section-header">
+    <div>
+      <p class="section-label">Sip & Relax</p>
+      <h2 class="section-title" id="bevTitle">Drinks & Mocktails</h2>
+      <p class="section-sub">Refreshing juices, mocktails and traditional beverages from around the world</p>
+    </div>
+  </div>
+  <div class="beverages-scroll" id="beveragesGrid"></div>
+</section>
+
+<!-- AI CHEF -->
+<section id="ai-chef">
+  <div class="ai-card">
+    <div>
+      <p class="section-label">Powered by AI</p>
+      <h2 class="section-title">What can you<br/><em style="font-style:italic;color:var(--accent);">cook tonight?</em></h2>
+      <p class="section-sub" style="margin-top:12px;" id="aiDesc">Tell us what's in your fridge and we'll suggest the perfect dishes you can make right now.</p>
+      <div class="ai-ingredients-input">
+        <div class="ai-ingredient-tags" id="aiTags"></div>
+        <div class="ai-input-row">
+          <input type="text" id="aiIngredientInput" placeholder="e.g. tomato, garlic, chicken…" onkeydown="if(event.key==='Enter')addAiIngredient()"/>
+          <button onclick="addAiIngredient()">Add</button>
+        </div>
+        <button class="btn-primary" style="margin-top:8px;border-radius:12px;" onclick="findRecipes()">✨ Find Recipes for me</button>
+      </div>
+    </div>
+    <div>
+      <div class="ai-result" id="aiResult">
+        <p class="ai-result-title" id="aiResultTitle">Dishes you can make:</p>
+        <ul class="ai-result-list" id="aiResultList"></ul>
+      </div>
+      <div id="aiPlaceholder" style="text-align:center;padding:40px 20px;">
+        <div style="font-size:3rem;margin-bottom:16px;">🤖</div>
+        <p style="color:var(--text3);font-size:0.9rem;" id="aiPlaceholderText">Add your ingredients and I'll find the perfect recipe!</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DISH MODAL -->
+<div class="modal-backdrop" id="dishModal">
+  <div class="recipe-modal" id="recipeModal">
+
+    <!-- BODY: left info + right tabs — full height -->
+    <div class="modal-body-grid" style="height:100%;">
+
+      <!-- LEFT: hero image with title overlaid + meta below -->
+      <div class="recipe-left">
+        <div class="recipe-hero-wrap">
+          <img class="recipe-hero-img" id="modalImg" src="" alt=""/>
+          <div class="recipe-hero-overlay"></div>
+          <!-- Back button floats top-left over image -->
+          <div class="modal-topbar">
+            <button class="modal-back-btn" onclick="closeModalDirect()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+              Back
+            </button>
+          </div>
+          <!-- Title + tags live ON the hero image at the bottom -->
+          <div class="recipe-hero-title-wrap">
+            <div class="recipe-hero-meta" id="modalMetaTags"></div>
+            <div class="recipe-hero-dish-name" id="modalTitle"></div>
+          </div>
+        </div>
+
+        <div class="recipe-left-content">
+          <p class="recipe-left-desc" id="modalDesc"></p>
+          <div class="recipe-rating-row">
+            <span class="big-stars" id="modalStars"></span>
+            <span style="font-weight:700;font-size:0.95rem;" id="modalRating"></span>
+            <span class="rating-count" id="modalRatingCount"></span>
+          </div>
+          <div class="recipe-quick-info" id="modalQuickInfo"></div>
+          <div class="ingredients-section-title">Nutrition per serving</div>
+          <div class="nutrition-bar" id="modalNutrition"></div>
+          <div class="recipe-actions">
+            <button class="recipe-action-btn" id="modalLikeBtn" onclick="toggleModalLike()">♡ Save</button>
+            <button class="recipe-action-btn" onclick="window.print()">🖨 Print</button>
+            <button class="recipe-action-btn primary-btn" onclick="goToSteps()">▶ Start Cooking</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: tabs -->
+      <div class="recipe-right">
+        <div class="recipe-tabs">
+          <button class="recipe-tab-btn active" onclick="switchTab('ingredients')" id="tab-ingredients">🥬 Ingredients</button>
+          <button class="recipe-tab-btn" onclick="switchTab('steps')" id="tab-steps">👨‍🍳 Steps</button>
+          <button class="recipe-tab-btn" onclick="switchTab('tips')" id="tab-tips">💡 Tips</button>
+        </div>
+        <div class="recipe-tab-scroller" id="tabScroller">
+          <!-- Ingredients Panel -->
+          <div class="recipe-tab-panel active" id="panel-ingredients">
+            <div style="margin-bottom:6px;">
+              <div style="font-size:0.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--text3);font-weight:600;margin-bottom:10px;">Adjust Servings</div>
+              <div class="serving-presets">
+                <button class="serving-preset" onclick="setServings(1)">1</button>
+                <button class="serving-preset" onclick="setServings(2)">2</button>
+                <button class="serving-preset active" onclick="setServings(4)">4</button>
+                <button class="serving-preset" onclick="setServings(6)">6</button>
+                <button class="serving-preset" onclick="setServings(8)">8</button>
+                <button class="serving-preset" onclick="setServings(10)">10</button>
+              </div>
+              <div class="serving-scaler">
+                <button class="serving-btn" onclick="changeServings(-1)">−</button>
+                <div class="serving-display"><span id="serving-num">4</span> servings</div>
+                <button class="serving-btn" onclick="changeServings(1)">+</button>
+              </div>
+            </div>
+            <div class="ingredients-section-title" id="ingPanelTitle" style="margin-top:6px;"></div>
+            <div class="ingredients-full-grid" id="modalIngredients"></div>
+          </div>
+          <!-- Steps Panel -->
+          <div class="recipe-tab-panel" id="panel-steps">
+            <div class="recipe-steps" id="modalSteps"></div>
+          </div>
+          <!-- Tips Panel -->
+          <div class="recipe-tab-panel" id="panel-tips">
+            <div class="tips-grid" id="modalTips"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- INGREDIENT MODAL -->
+<div class="modal-backdrop" id="ingredientModal">
+  <div class="ing-modal-full" id="ingredientModalContent" style="position:relative;">
+    <button class="modal-close" onclick="closeIngredientModal()" style="position:absolute;top:16px;right:16px;">✕</button>
+    <!-- Hero image -->
+    <div style="position:relative;height:260px;overflow:hidden;border-radius:24px 24px 0 0;">
+      <img id="ingModalImg" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:block;filter:brightness(0.7);"/>
+      <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(22,22,22,1) 0%,transparent 50%);border-radius:24px 24px 0 0;"></div>
+      <div style="position:absolute;bottom:24px;left:28px;">
+        <h2 style="font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:900;color:#fff;" id="ingModalName"></h2>
+        <p id="ingModalCount" style="color:var(--accent);font-size:0.85rem;margin-top:4px;font-weight:600;"></p>
+      </div>
+    </div>
+    <div style="padding:28px;">
+      <p id="ingModalDesc" style="color:var(--text2);font-size:0.9rem;line-height:1.7;margin-bottom:24px;"></p>
+      <div class="ingredients-section-title">Common measures</div>
+      <div id="ingModalMeasures" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px;"></div>
+      <div class="ingredients-section-title">Dishes using this ingredient</div>
+      <div class="dishes-grid" id="ingModalDishes" style="gap:14px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-logo">FlavorWorld</div>
+      <p class="footer-desc">Your passport to the world's kitchens. Discover authentic recipes from every corner of the globe.</p>
+    </div>
+    <div>
+      <p class="footer-col-title">Explore</p>
+      <ul class="footer-links">
+        <li><a>All Cuisines</a></li>
+        <li><a>Starters</a></li>
+        <li><a>Main Course</a></li>
+        <li><a>Desserts</a></li>
+        <li><a>Beverages</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="footer-col-title">Features</p>
+      <ul class="footer-links">
+        <li><a>AI Chef</a></li>
+        <li><a>Pantry Matcher</a></li>
+        <li><a>Meal Planner</a></li>
+        <li><a>Shopping List</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="footer-col-title">Community</p>
+      <ul class="footer-links">
+        <li><a>Favorites</a></li>
+        <li><a>Reviews</a></li>
+        <li><a>Chef Spotlights</a></li>
+        <li><a>Submit Recipe</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p class="footer-copy">© 2025 FlavorWorld. All rights reserved. Built with ❤️ for food lovers worldwide.</p>
+    <p class="footer-copy">Images via Unsplash · Free & Open</p>
+  </div>
+</footer>
+
+<script>
+// ===========================
+// DATA
+// ===========================
+const UNSPLASH = 'https://images.unsplash.com';
+
+// Returns Firebase dishes if loaded, else falls back to hardcoded DISHES
+function getActiveDishes() {
+  return (window.FIREBASE_DISHES && window.FIREBASE_DISHES.length > 0)
+    ? window.FIREBASE_DISHES
+    : DISHES;
+}
+
+// Handles both Unsplash photo IDs (from hardcoded data) and full URLs (from Firebase/TheMealDB)
+function dishImg(img, size='w=600&q=80') {
+  if (!img) return `${UNSPLASH}/photo-1546069901-ba9599a7e63c?${size}`;
+  if (img.startsWith('http')) return img; // full URL — use as-is
+  return `${UNSPLASH}/${img}`;           // Unsplash photo ID
+}
+
+const CUISINES = [
+  { id:'indian', name:'Indian', flag:'🇮🇳', count:420, img:'photo-1585937421612-70a008356fbe?w=400&q=80', color:'#e8631a' },
+  { id:'italian', name:'Italian', flag:'🇮🇹', count:380, img:'photo-1555396273-367ea4eb4db5?w=400&q=80', color:'#e8c41a' },
+  { id:'japanese', name:'Japanese', flag:'🇯🇵', count:310, img:'photo-1617196034183-421b4040ed20?w=400&q=80', color:'#e81a2a' },
+  { id:'mexican', name:'Mexican', flag:'🇲🇽', count:290, img:'photo-1565299585323-38d6b0865b47?w=400&q=80', color:'#4fa832' },
+  { id:'chinese', name:'Chinese', flag:'🇨🇳', count:350, img:'photo-1563245372-f21724e3856d?w=400&q=80', color:'#e82020' },
+  { id:'thai', name:'Thai', flag:'🇹🇭', count:240, img:'photo-1562565652-a0d8f0c59eb4?w=400&q=80', color:'#e87a1a' },
+  { id:'french', name:'French', flag:'🇫🇷', count:280, img:'photo-1414235077428-338989a2e8c0?w=400&q=80', color:'#1a58e8' },
+  { id:'greek', name:'Greek', flag:'🇬🇷', count:180, img:'photo-1504674900247-0877df9cc836?w=400&q=80', color:'#1a8ee8' },
+  { id:'lebanese', name:'Lebanese', flag:'🇱🇧', count:160, img:'photo-1548943487-a2e4e43b4853?w=400&q=80', color:'#2e9e2e' },
+  { id:'korean', name:'Korean', flag:'🇰🇷', count:220, img:'photo-1590301157890-4810ed352733?w=400&q=80', color:'#c41a4a' },
+  { id:'spanish', name:'Spanish', flag:'🇪🇸', count:200, img:'photo-1515443961218-a51367888e4b?w=400&q=80', color:'#e81a1a' },
+  { id:'american', name:'American', flag:'🇺🇸', count:260, img:'photo-1568901346375-23c9450c58cd?w=400&q=80', color:'#1a4ae8' },
+];
+
+const COURSES = [
+  { id:'all', label:'All Dishes', icon:'🍽️' },
+  { id:'starters', label:'Starters', icon:'🥗' },
+  { id:'main', label:'Main Course', icon:'🍛' },
+  { id:'snacks', label:'Snacks', icon:'🥪' },
+  { id:'desserts', label:'Desserts', icon:'🍰' },
+  { id:'beverages', label:'Beverages', icon:'🥤' },
+];
+
+const DISHES = [
+  { id:1, name:'Butter Chicken', cuisine:'Indian', course:'main', img:'photo-1585937421612-70a008356fbe?w=800&q=85', rating:4.9, reviews:3240, time:'45 min', prepTime:'15 min', cookTime:'30 min', difficulty:'Medium', veg:false, servings:4,
+    desc:'Murgh Makhani — tender marinated chicken simmered in a velvety tomato-cream sauce fragrant with fenugreek. The dish that put Indian food on the world map.',
+    nutrition:{calories:480, protein:'38g', carbs:'22g', fat:'28g', fiber:'4g'},
+    ingredients:[
+      {name:'Chicken',qty:'700g',unit:'boneless thighs, cut in pieces',img:'photo-1604503468506-a8da13d82791?w=300&q=80'},
+      {name:'Tomato',qty:'4 medium',unit:'ripe, roughly chopped',img:'photo-1558618666-fcd25c85cd64?w=300&q=80'},
+      {name:'Heavy Cream',qty:'½ cup',unit:'120ml',img:'photo-1550583724-b2692b85b150?w=300&q=80'},
+      {name:'Garam Masala',qty:'2 tsp',unit:'heaped',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Ginger',qty:'1½ inch',unit:'fresh, grated',img:'photo-1603130736427-95a68baee53a?w=300&q=80'},
+      {name:'Garlic',qty:'6 cloves',unit:'finely minced',img:'photo-1540420773420-3366772f4999?w=300&q=80'},
+      {name:'Onion',qty:'2 large',unit:'thinly sliced',img:'photo-1618512496248-a07fe83aa8cb?w=300&q=80'},
+      {name:'Butter',qty:'3 tbsp',unit:'unsalted',img:'photo-1589985270826-4b7bb135bc9d?w=300&q=80'},
+      {name:'Kashmiri Chili',qty:'1 tbsp',unit:'for deep colour',img:'photo-1518977676601-b53f82aba655?w=300&q=80'},
+      {name:'Yogurt',qty:'½ cup',unit:'full fat, for marinade',img:'photo-1488477181946-6428a0291777?w=300&q=80'},
+      {name:'Kasuri Methi',qty:'1 tbsp',unit:'dried fenugreek, crushed',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+    ],
+    steps:[
+      {title:'Marinate the chicken',instruction:'In a large bowl combine yogurt, 1 tsp garam masala, 1 tsp Kashmiri chili, ginger-garlic paste, lemon juice and salt. Add chicken and coat thoroughly. Cover and refrigerate for minimum 2 hours, ideally overnight.',tip:'The longer the marinade, the more tender the chicken. Overnight is best.', img:'photo-1604503468506-a8da13d82791?w=700&q=85', timer:'120 min'},
+      {title:'Char the chicken',instruction:'Heat a grill pan on high heat. Brush with oil. Cook marinated chicken in batches, 4–5 minutes per side until charred edges appear. The char gives the dish its characteristic smoky depth.',tip:'Do not overcrowd the pan — this steams instead of chars.', img:'photo-1585937421612-70a008356fbe?w=700&q=85', timer:'10 min'},
+      {title:'Build the masala base',instruction:'In a heavy pan, melt 2 tbsp butter on medium heat. Add cumin seeds and let them crackle 30 seconds. Add sliced onions and cook 12–15 minutes until deep golden. Add ginger-garlic paste and cook 2 more minutes until raw smell disappears.',tip:'Patience here is key — undercooked onions make a sharp, bitter sauce.', img:'photo-1618512496248-a07fe83aa8cb?w=700&q=85', timer:'15 min'},
+      {title:'Cook down the tomatoes',instruction:'Add chopped tomatoes, remaining Kashmiri chili and a pinch of salt. Cook on medium-high for 15–18 minutes, stirring occasionally, until tomatoes completely break down and oil separates from the masala.',tip:'The oil separating from the sides signals the base is properly cooked.', img:'photo-1558618666-fcd25c85cd64?w=700&q=85', timer:'18 min'},
+      {title:'Blend silky smooth',instruction:'Allow tomato mixture to cool slightly, then blend on high for 90 seconds until completely smooth. Pass through a fine mesh sieve back into the pan, pressing with a spatula to extract all the sauce.',tip:'Straining is what gives restaurant-quality butter chicken its silky texture.', img:'photo-1585937421612-70a008356fbe?w=700&q=85', timer:'5 min'},
+      {title:'Finish with cream & serve',instruction:'Bring strained sauce to a gentle simmer. Add charred chicken, cream, butter and crushed kasuri methi. Simmer on low 8–10 minutes until sauce coats the back of a spoon. Serve with warm naan.',tip:'Add cream off heat first if you see it splitting — high heat curdles cream.', img:'photo-1585937421612-70a008356fbe?w=700&q=85', timer:'10 min'},
+    ],
+    tips:[
+      {icon:'🔥',title:'Charring is mandatory',text:'The blackened edges on the chicken add the smoky, tandoor-like flavour that defines this dish. Do not skip the charring step.'},
+      {icon:'🎨',title:'Colour comes from Kashmiri chili',text:'Use Kashmiri chili powder — not regular chili — for that deep orange-red colour. It has mild heat but brilliant colour.'},
+      {icon:'🥛',title:'Full fat dairy only',text:'Use full-fat yogurt and heavy cream. Low-fat versions will split in the heat and give a grainy texture.'},
+      {icon:'⏰',title:'Marinate overnight',text:'A 2-hour marinade is fine, but marinating overnight transforms the chicken — it becomes fall-apart tender.'},
+    ]
+  },
+  { id:2, name:'Margherita Pizza', cuisine:'Italian', course:'main', img:'photo-1574071318508-1cdbab80d002?w=800&q=85', rating:4.8, reviews:2180, time:'35 min', prepTime:'15 min', cookTime:'12 min', difficulty:'Easy', veg:true, servings:2,
+    desc:'Born in Naples in 1889, the Margherita represents the Italian flag — red tomato, white mozzarella, green basil. Simple ingredients, perfect execution.',
+    nutrition:{calories:310, protein:'14g', carbs:'42g', fat:'9g', fiber:'3g'},
+    ingredients:[
+      {name:'Pizza Dough',qty:'250g',unit:'room temperature ball',img:'photo-1574071318508-1cdbab80d002?w=300&q=80'},
+      {name:'Fresh Mozzarella',qty:'150g',unit:'fior di latte, torn',img:'photo-1486297678162-eb2a19b0a32d?w=300&q=80'},
+      {name:'San Marzano Tomatoes',qty:'200g',unit:'canned, crushed by hand',img:'photo-1558618666-fcd25c85cd64?w=300&q=80'},
+      {name:'Fresh Basil',qty:'10 leaves',unit:'torn, added after baking',img:'photo-1562158079-e5e1a8b8b859?w=300&q=80'},
+      {name:'Extra Virgin Olive Oil',qty:'2 tbsp',unit:'high quality',img:'photo-1474979266404-7eaacbcd87c5?w=300&q=80'},
+      {name:'Sea Salt',qty:'½ tsp',unit:'flaky',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+    ],
+    steps:[
+      {title:'Preheat oven and stone',instruction:'Place a pizza stone or upside-down baking sheet on the top rack. Preheat to maximum temperature (500°F/260°C) for at least 45 minutes. A screaming hot surface creates that crispy-chewy base.',tip:'The hotter the oven and surface, the better your pizza.', img:'photo-1574071318508-1cdbab80d002?w=700&q=85', timer:'45 min'},
+      {title:'Prepare the sauce',instruction:'Crush San Marzano tomatoes by hand into a bowl. Season with sea salt and a drizzle of olive oil. Do not cook — raw tomatoes create the freshest flavour.',tip:'Never blend the sauce — hand-crushed tomatoes have better texture.', img:'photo-1558618666-fcd25c85cd64?w=700&q=85'},
+      {title:'Stretch the dough',instruction:'On a floured surface, gently press from the centre outward with your fingers. Then drape over your knuckles and rotate, letting gravity stretch to a 12-inch round. Avoid a rolling pin — it deflates the air bubbles.',tip:'Uneven thickness is authentic! Thin in the middle, slightly thicker at the edge.', img:'photo-1574071318508-1cdbab80d002?w=700&q=85'},
+      {title:'Top and bake',instruction:'Spoon 4–5 tbsp crushed tomato onto the dough, spreading to within ½ inch of the edge. Tear and scatter mozzarella evenly. Slide onto the hot stone. Bake 10–12 minutes until crust is charred in spots and cheese is bubbling.',tip:'A few black spots on the crust are perfect — Neapolitan style.', img:'photo-1574071318508-1cdbab80d002?w=700&q=85', timer:'12 min'},
+      {title:'Finish and serve',instruction:'Remove from oven and immediately scatter fresh torn basil over the top. Drizzle with your best olive oil. Slice and serve immediately.',tip:'Basil goes on after baking to preserve its colour and aroma.', img:'photo-1574071318508-1cdbab80d002?w=700&q=85'},
+    ],
+    tips:[
+      {icon:'🌡️',title:'Temperature is everything',text:'A pizza stone preheated for 45 min at maximum oven temperature mimics a wood-fired oven. This single upgrade transforms home pizza.'},
+      {icon:'🇮🇹',title:'Only San Marzano tomatoes',text:'San Marzano DOP tomatoes from volcanic soil near Naples have less acidity and more sweetness. They are the non-negotiable ingredient.'},
+      {icon:'💧',title:'Pat mozzarella dry',text:'Wet mozzarella = soggy pizza. Pat fresh mozzarella dry with kitchen paper before using. Excess moisture creates a wet, unpleasant base.'},
+    ]
+  },
+  { id:3, name:'Pad Thai', cuisine:'Thai', course:'main', img:'photo-1559314809-0d155014e29e?w=800&q=85', rating:4.7, reviews:1890, time:'20 min', prepTime:'10 min', cookTime:'10 min', difficulty:'Easy', veg:false, servings:2,
+    desc:"Thailand's national dish — stir-fried rice noodles in a tangy-sweet tamarind sauce with egg, crisp bean sprouts, crushed peanuts and a squeeze of lime.",
+    nutrition:{calories:520, protein:'26g', carbs:'68g', fat:'18g', fiber:'5g'},
+    ingredients:[
+      {name:'Rice Noodles',qty:'200g',unit:'flat, 5mm width',img:'photo-1569050467447-ce54b3bbc37d?w=300&q=80'},
+      {name:'Eggs',qty:'2 large',unit:'',img:'photo-1569288052389-dac9b01c9c05?w=300&q=80'},
+      {name:'Bean Sprouts',qty:'1 cup',unit:'fresh, served raw',img:'photo-1576045057995-568f588f82fb?w=300&q=80'},
+      {name:'Roasted Peanuts',qty:'4 tbsp',unit:'roughly crushed',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Tamarind Paste',qty:'3 tbsp',unit:'concentrated',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Fish Sauce',qty:'2 tbsp',unit:'Golden Boy brand preferred',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Palm Sugar',qty:'2 tbsp',unit:'or brown sugar',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Shrimp',qty:'150g',unit:'peeled and deveined',img:'photo-1565680018434-b513d5e5fd47?w=300&q=80'},
+      {name:'Lime',qty:'2',unit:'cut in wedges to serve',img:'photo-1587486913049-53fc88980cfc?w=300&q=80'},
+      {name:'Scallions',qty:'3 stalks',unit:'cut in 1-inch pieces',img:'photo-1576045057995-568f588f82fb?w=300&q=80'},
+    ],
+    steps:[
+      {title:'Soak the noodles',instruction:'Place rice noodles in a large bowl and cover with room-temperature water (not boiling). Soak exactly 30 minutes until pliable but still firm — they will finish cooking in the wok. Drain and toss with a little oil to prevent sticking.',tip:'Under-soaked noodles break; over-soaked noodles become mush in the wok.', img:'photo-1569050467447-ce54b3bbc37d?w=700&q=85', timer:'30 min'},
+      {title:'Mix the Pad Thai sauce',instruction:'Whisk together tamarind paste, fish sauce, palm sugar, and 1 tbsp water. Taste — it should be a balance of tangy, salty, and sweet. This sauce is the soul of the dish.',tip:'Pad Thai sauce should taste slightly too strong on its own — it mellows in the wok.', img:'photo-1559314809-0d155014e29e?w=700&q=85'},
+      {title:'Stir fry the shrimp',instruction:'Heat wok on maximum heat until smoking. Add 2 tbsp oil. Add shrimp and cook, undisturbed, 60 seconds until pink and curled. Flip and cook 30 more seconds. Push to the side.',tip:'A smoking-hot wok is non-negotiable. Moderate heat makes soggy grey Pad Thai.', img:'photo-1559314809-0d155014e29e?w=700&q=85', timer:'2 min'},
+      {title:'Scramble the eggs',instruction:'Push shrimp aside. Add eggs to the empty side of the wok. Let them set 10 seconds, then scramble roughly with your spatula. When 70% cooked, combine with the shrimp.',tip:'Slightly under-scramble — residual heat finishes cooking the egg.', img:'photo-1569288052389-dac9b01c9c05?w=700&q=85'},
+      {title:'Add noodles and sauce',instruction:'Add drained noodles to the wok. Pour Pad Thai sauce evenly over noodles. Toss continuously with tongs for 2 minutes. Add a splash of water if noodles stick. Add scallion pieces and toss 30 more seconds.',img:'photo-1559314809-0d155014e29e?w=700&q=85', timer:'3 min'},
+      {title:'Plate and garnish',instruction:'Portion into two bowls. Top generously with fresh bean sprouts, crushed roasted peanuts, and sliced red chili. Serve immediately with lime wedges on the side.',tip:'Add bean sprouts at serving — never cook them. They should be raw and crunchy.', img:'photo-1559314809-0d155014e29e?w=700&q=85'},
+    ],
+    tips:[
+      {icon:'🔥',title:'Nuclear-hot wok only',text:'Pad Thai cooked on low heat is steamed noodles. The wok must be screaming hot to get that characteristic smoky wok hei flavour.'},
+      {icon:'🍋',title:'Lime goes on at the table',text:'Never add lime juice to the wok — it turns the noodles green and bitter. Always serve wedges on the side.'},
+      {icon:'🥜',title:'Toast your own peanuts',text:'Pre-packed crushed peanuts are stale. Buy whole roasted peanuts and crush them yourself just before serving.'},
+    ]
+  },
+  { id:4, name:'Sushi Platter', cuisine:'Japanese', course:'starters', img:'photo-1617196034183-421b4040ed20?w=800&q=85', rating:4.9, reviews:2760, time:'60 min', prepTime:'40 min', cookTime:'20 min', difficulty:'Hard', veg:false, servings:4,
+    desc:"A curated selection of nigiri and maki rolls crafted from the finest cuts of salmon, tuna and yellowtail, showcasing the Japanese art of restraint and precision.",
+    nutrition:{calories:340, protein:'24g', carbs:'52g', fat:'6g', fiber:'2g'},
+    ingredients:[
+      {name:'Sushi Rice',qty:'2 cups',unit:'Japanese short-grain, dry',img:'photo-1536304993881-ff86e0c9c6a5?w=300&q=80'},
+      {name:'Nori Sheets',qty:'5',unit:'full sheets',img:'photo-1617196034183-421b4040ed20?w=300&q=80'},
+      {name:'Salmon',qty:'200g',unit:'sashimi-grade, skinless',img:'photo-1574781330855-d0db8cc6a79c?w=300&q=80'},
+      {name:'Tuna',qty:'150g',unit:'sashimi-grade',img:'photo-1565680018434-b513d5e5fd47?w=300&q=80'},
+      {name:'Avocado',qty:'1 ripe',unit:'halved, sliced thin',img:'photo-1523049673857-eb18f1d7b578?w=300&q=80'},
+      {name:'Cucumber',qty:'½',unit:'deseeded, julienned',img:'photo-1449300079323-02e209d9d3a6?w=300&q=80'},
+      {name:'Soy Sauce',qty:'4 tbsp',unit:'low sodium, for dipping',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Wasabi',qty:'2 tsp',unit:'paste',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Rice Vinegar',qty:'3 tbsp',unit:'seasoned',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Pickled Ginger',qty:'40g',unit:'gari, to serve',img:'photo-1603130736427-95a68baee53a?w=300&q=80'},
+    ],
+    steps:[
+      {title:'Cook perfect sushi rice',instruction:'Wash rice in cold water 4–5 times until water runs clear. Cook in a 1:1.1 ratio of rice to water. While hot, fold in seasoned rice vinegar (3 tbsp vinegar + 1 tbsp sugar + 1 tsp salt, warmed) using a rice paddle in slicing motions. Fan simultaneously to create a glossy sheen.',tip:'Never stir sushi rice — you will break the grains and make it starchy.', img:'photo-1536304993881-ff86e0c9c6a5?w=700&q=85', timer:'20 min'},
+      {title:'Slice the fish',instruction:'Keep fish in the freezer for 20 minutes before slicing — it firms up for cleaner cuts. Using your sharpest knife, slice at a 45° angle into pieces approximately 3cm x 6cm x 5mm thick.',tip:'A dull knife drags and tears the fish, destroying the texture.', img:'photo-1574781330855-d0db8cc6a79c?w=700&q=85'},
+      {title:'Form nigiri',instruction:'Wet your hands in cold water. Take 20g of rice and gently press into an oval. Place a slice of fish across the top and press lightly with two fingers to adhere.',img:'photo-1617196034183-421b4040ed20?w=700&q=85'},
+      {title:'Roll maki',instruction:'Place nori shiny-side down on a bamboo mat. Spread 80g rice in a thin, even layer leaving a 2cm border at the top. Add fillings in a horizontal line. Roll forward firmly. Seal with a damp finger. Rest seam-side down 2 minutes before cutting.',tip:'Wet your knife blade before each cut for clean slices.', img:'photo-1617196034183-421b4040ed20?w=700&q=85'},
+      {title:'Plate artfully',instruction:'Arrange nigiri in pairs (always even numbers in Japanese cuisine). Place maki rolls cut-side up in a row. Garnish with shredded daikon, a ball of wasabi, and pickled ginger. Serve with soy sauce.',img:'photo-1617196034183-421b4040ed20?w=700&q=85'},
+    ],
+    tips:[
+      {icon:'🐟',title:'Sashimi-grade fish only',text:"Never use regular supermarket fish for sushi. Source from a reputable Japanese fishmonger who can confirm it has been frozen to eliminate parasites."},
+      {icon:'🌡️',title:'Rice temperature is critical',text:'Sushi rice must be used at body temperature — not hot, not cold. Hot rice steams the nori and makes it soggy.'},
+      {icon:'🖐️',title:'Wet hands always',text:'Keep a bowl of cold water beside you. Dip hands before handling rice every time.'},
+    ]
+  },
+  { id:5, name:'Churros with Chocolate', cuisine:'Spanish', course:'desserts', img:'photo-1551024601-bec78aea704b?w=800&q=85', rating:4.8, reviews:1540, time:'25 min', prepTime:'10 min', cookTime:'15 min', difficulty:'Easy', veg:true, servings:4,
+    desc:'Crispy ridged dough sticks fried until golden, rolled in cinnamon sugar and plunged into a thick, glossy dark chocolate sauce. A Spanish street food icon.',
+    nutrition:{calories:420, protein:'7g', carbs:'58g', fat:'19g', fiber:'3g'},
+    ingredients:[
+      {name:'All-purpose Flour',qty:'1 cup',unit:'125g, sifted',img:'photo-1574323347407-f5e1ad6d020b?w=300&q=80'},
+      {name:'Unsalted Butter',qty:'2 tbsp',unit:'28g',img:'photo-1589985270826-4b7bb135bc9d?w=300&q=80'},
+      {name:'Eggs',qty:'2 large',unit:'',img:'photo-1569288052389-dac9b01c9c05?w=300&q=80'},
+      {name:'Granulated Sugar',qty:'¼ cup + 2 tbsp',unit:'divided',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Ground Cinnamon',qty:'1½ tsp',unit:'for rolling',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Dark Chocolate',qty:'100g',unit:'70% cocoa, chopped',img:'photo-1606312619070-d48b4c652a52?w=300&q=80'},
+      {name:'Heavy Cream',qty:'½ cup',unit:'120ml',img:'photo-1550583724-b2692b85b150?w=300&q=80'},
+      {name:'Neutral Oil',qty:'500ml',unit:'for deep frying',img:'photo-1474979266404-7eaacbcd87c5?w=300&q=80'},
+    ],
+    steps:[
+      {title:'Make the choux dough',instruction:'Bring 1 cup water, butter, 1 tbsp sugar, and ½ tsp salt to a rolling boil. Remove from heat and immediately add all the flour at once. Stir vigorously until a smooth ball forms and pulls away from the sides.',tip:'Work fast — the water must be boiling when you add the flour.', img:'photo-1551024601-bec78aea704b?w=700&q=85'},
+      {title:'Beat in the eggs',instruction:'Let dough cool 5 minutes. Beat in eggs one at a time until each is fully incorporated. The final dough should be thick, shiny, and just barely hold its shape when you lift the spoon.',tip:'The right consistency forms a slow "V" when you hold up your spoon.', img:'photo-1551024601-bec78aea704b?w=700&q=85'},
+      {title:'Fry to golden',instruction:'Heat oil to 180°C/355°F. Fill a piping bag with a large star nozzle with the dough. Pipe 5–6 inch lengths directly into the oil, cutting with scissors. Fry in batches for 3–4 minutes per side until deep golden.',tip:'Maintain oil between 175–185°C. Too low = greasy; too high = raw inside.', img:'photo-1551024601-bec78aea704b?w=700&q=85', timer:'8 min'},
+      {title:'Roll in cinnamon sugar',instruction:'Mix remaining sugar with cinnamon in a shallow dish. While churros are still hot, roll each one to coat evenly. The heat helps the sugar adhere.',img:'photo-1551024601-bec78aea704b?w=700&q=85'},
+      {title:'Make chocolate sauce',instruction:'Heat heavy cream until just steaming. Pour over chopped chocolate. Wait 60 seconds, then stir from the centre outward until completely smooth ganache forms.',tip:'This ganache thickens as it cools — make it last, just before serving.', img:'photo-1551024601-bec78aea704b?w=700&q=85', timer:'3 min'},
+    ],
+    tips:[
+      {icon:'⭐',title:'Star nozzle is essential',text:'The star-shaped ridges dramatically increase the surface area, making the churro crispier. A plain round nozzle gives a soft, bread-like result.'},
+      {icon:'🌡️',title:'Oil temp makes or breaks it',text:'Use a cooking thermometer. At 180°C you get the perfect crispy outside, fully cooked inside. Test with a small drop of dough before frying.'},
+      {icon:'⚡',title:'Eat immediately',text:'Churros are at their best within 5 minutes of frying. Time the chocolate sauce to finish just as the churros come out of the oil.'},
+    ]
+  },
+  { id:6, name:'Tacos al Pastor', cuisine:'Mexican', course:'main', img:'photo-1565299585323-38d6b0865b47?w=800&q=85', rating:4.7, reviews:1720, time:'40 min', prepTime:'20 min', cookTime:'20 min', difficulty:'Medium', veg:false, servings:4,
+    desc:"Born from Lebanese shawarma brought by immigrants to Mexico City — thinly sliced marinated pork with pineapple, served on tiny corn tortillas. Mexico City's most beloved street food.",
+    nutrition:{calories:390, protein:'28g', carbs:'34g', fat:'16g', fiber:'5g'},
+    ingredients:[
+      {name:'Pork Shoulder',qty:'600g',unit:'thinly sliced, ¼ inch',img:'photo-1604503468506-a8da13d82791?w=300&q=80'},
+      {name:'Achiote Paste',qty:'2 tbsp',unit:'recado rojo',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Fresh Pineapple',qty:'4 rings',unit:'½ inch thick',img:'photo-1550258987-190a2d41a8ba?w=300&q=80'},
+      {name:'Corn Tortillas',qty:'12 small',unit:'5-inch diameter',img:'photo-1565299585323-38d6b0865b47?w=300&q=80'},
+      {name:'Fresh Cilantro',qty:'½ cup',unit:'roughly chopped',img:'photo-1576045057995-568f588f82fb?w=300&q=80'},
+      {name:'White Onion',qty:'1 medium',unit:'very finely diced',img:'photo-1618512496248-a07fe83aa8cb?w=300&q=80'},
+      {name:'Lime',qty:'3',unit:'cut in wedges',img:'photo-1587486913049-53fc88980cfc?w=300&q=80'},
+      {name:'Guajillo Chilies',qty:'3 dried',unit:'soaked 20 min in hot water',img:'photo-1518977676601-b53f82aba655?w=300&q=80'},
+    ],
+    steps:[
+      {title:'Make the marinade',instruction:'Blend soaked guajillo chilies (drained), achiote paste, white vinegar, 1 tsp each of cumin, oregano, garlic powder, and black pepper with ¼ cup water until a smooth red paste forms.',img:'photo-1596040033229-a9821ebd058d?w=700&q=85'},
+      {title:'Marinate the pork',instruction:'Coat pork slices completely in marinade. Layer in a container with pineapple rings interspersed between layers. Cover and refrigerate minimum 4 hours, ideally overnight.',tip:'The pineapple contains bromelain enzyme that actively tenderizes the pork.', img:'photo-1565299585323-38d6b0865b47?w=700&q=85', timer:'240 min'},
+      {title:'Cook the pork',instruction:'Heat a cast iron griddle on high heat. Cook pork slices in a single layer for 3–4 minutes per side until edges are caramelized and slightly charred. Cook pineapple rings separately until grill marks form.',tip:'The caramelized, slightly burnt edges are where all the flavour is.', img:'photo-1565299585323-38d6b0865b47?w=700&q=85', timer:'8 min'},
+      {title:'Chop and assemble',instruction:'Chop cooked pork and pineapple into small pieces. Warm corn tortillas directly on a gas flame or dry skillet until pliable and slightly charred. Double-stack two tortillas per taco. Add a generous pile of pork and pineapple.',img:'photo-1565299585323-38d6b0865b47?w=700&q=85'},
+      {title:'Garnish and serve',instruction:'Top each taco with very finely diced raw white onion and freshly chopped cilantro. Squeeze lime generously over everything. Serve immediately.',tip:'The onion must be raw and fine-diced. Cooked onion changes the entire character.', img:'photo-1565299585323-38d6b0865b47?w=700&q=85'},
+    ],
+    tips:[
+      {icon:'🍍',title:'Fresh pineapple is not optional',text:'The enzyme bromelain in fresh pineapple tenderizes the pork. Canned pineapple (pasteurized) does not contain bromelain.'},
+      {icon:'🌽',title:'Double tortilla rule',text:'Street vendors in Mexico City always double the tortillas — it prevents them from tearing under the weight of the filling.'},
+      {icon:'🔪',title:'Thin slicing matters',text:'The pork must be sliced very thin (¼ inch max). This allows it to char at the edges while staying moist inside.'},
+    ]
+  },
+  { id:7, name:'Mango Sticky Rice', cuisine:'Thai', course:'desserts', img:'photo-1553361371-9b22f78e8b1d?w=800&q=85', rating:4.9, reviews:2010, time:'45 min', prepTime:'8 hrs', cookTime:'35 min', difficulty:'Easy', veg:true, servings:4,
+    desc:"Khao Niao Mamuang — Thailand's most beloved dessert. Fragrant glutinous rice soaked in lightly salted coconut cream, served alongside slices of peak-season ripe mango.",
+    nutrition:{calories:380, protein:'5g', carbs:'72g', fat:'9g', fiber:'3g'},
+    ingredients:[
+      {name:'Glutinous Rice',qty:'1½ cups',unit:'soaked 8 hrs or overnight',img:'photo-1536304993881-ff86e0c9c6a5?w=300&q=80'},
+      {name:'Coconut Milk',qty:'400ml',unit:'1 can, full fat',img:'photo-1588710929771-a5870d3f0ae4?w=300&q=80'},
+      {name:'Ripe Mango',qty:'2 large',unit:'Alphonso or Ataulfo',img:'photo-1553279768-865429fa0078?w=300&q=80'},
+      {name:'Palm Sugar',qty:'3 tbsp',unit:'or light brown sugar',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Salt',qty:'¼ + ⅛ tsp',unit:'divided',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Toasted Sesame Seeds',qty:'1 tsp',unit:'to garnish',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+    ],
+    steps:[
+      {title:'Soak the rice overnight',instruction:'Place glutinous rice in a bowl and cover with cold water by 3 inches. Soak at least 8 hours. The grains will turn white and be easily broken between your fingers when ready.',tip:'Do not skip soaking — unsoaked glutinous rice steams unevenly and stays hard.', img:'photo-1536304993881-ff86e0c9c6a5?w=700&q=85', timer:'480 min'},
+      {title:'Steam the rice',instruction:'Line a steamer with cheesecloth. Drain and add soaked rice. Steam over boiling water on high heat for 25–30 minutes, flipping the rice halfway through, until grains are translucent and tender.',tip:'The rice is done when it glistens and sticks to itself, not to your fingers.', img:'photo-1536304993881-ff86e0c9c6a5?w=700&q=85', timer:'30 min'},
+      {title:'Make the coconut sauce',instruction:'Combine coconut milk with palm sugar and ¼ tsp salt in a saucepan. Heat on medium, stirring, until sugar dissolves. Do not boil. Reserve ½ cup separately for serving.',img:'photo-1588710929771-a5870d3f0ae4?w=700&q=85', timer:'5 min'},
+      {title:'Soak rice in coconut sauce',instruction:'Transfer hot steamed rice to a wide bowl. Pour the larger portion of warm coconut sauce over rice and gently fold. Cover and rest 20 minutes — the rice will absorb all the coconut cream.',tip:'The rice must be hot when you add the sauce for proper absorption.', img:'photo-1553361371-9b22f78e8b1d?w=700&q=85', timer:'20 min'},
+      {title:'Slice and plate',instruction:'Peel mangoes and slice lengthwise alongside the flat seed. Mound coconut rice on one side of the plate, arrange mango slices alongside. Drizzle reserved coconut cream over everything. Top with sesame seeds.',img:'photo-1553361371-9b22f78e8b1d?w=700&q=85'},
+    ],
+    tips:[
+      {icon:'🥭',title:'Mango ripeness is everything',text:'The mango must be fully ripe — fragrant, yielding to gentle pressure, and sweet. An unripe mango ruins the dish.'},
+      {icon:'⏰',title:'Serve at room temperature',text:'Sticky rice is best at room temperature, not cold. Refrigerated rice loses its sticky, pillowy texture completely.'},
+      {icon:'🥥',title:'Full-fat coconut milk only',text:'Light coconut milk lacks the fat needed to properly infuse the rice with coconut flavour.'},
+    ]
+  },
+  { id:8, name:'Hummus & Pita', cuisine:'Lebanese', course:'starters', img:'photo-1547592180-85f173990554?w=800&q=85', rating:4.6, reviews:1320, time:'15 min', prepTime:'10 min', cookTime:'5 min', difficulty:'Easy', veg:true, servings:6,
+    desc:'Silky, cloud-like chickpea purée blended with sesame tahini and bright lemon. Made in Lebanon for centuries. The secret: ice-cold water and a very long blend.',
+    nutrition:{calories:190, protein:'8g', carbs:'22g', fat:'9g', fiber:'6g'},
+    ingredients:[
+      {name:'Canned Chickpeas',qty:'400g',unit:'drained, skins removed',img:'photo-1547592180-85f173990554?w=300&q=80'},
+      {name:'Tahini',qty:'4 tbsp',unit:'runny, well-stirred',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Lemon',qty:'2',unit:'juice only, about 6 tbsp',img:'photo-1587486913049-53fc88980cfc?w=300&q=80'},
+      {name:'Garlic',qty:'2 cloves',unit:'',img:'photo-1540420773420-3366772f4999?w=300&q=80'},
+      {name:'Extra Virgin Olive Oil',qty:'4 tbsp',unit:'+ more for serving',img:'photo-1474979266404-7eaacbcd87c5?w=300&q=80'},
+      {name:'Ice Cold Water',qty:'4–6 tbsp',unit:'the secret ingredient',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Smoked Paprika',qty:'½ tsp',unit:'to garnish',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Pita Bread',qty:'4',unit:'warm, or toasted',img:'photo-1547592180-85f173990554?w=300&q=80'},
+    ],
+    steps:[
+      {title:'Remove chickpea skins',instruction:'Tip drained chickpeas into a bowl of cold water and rub them between your hands. The papery skins will float to the top — scoop them off. This step is the difference between smooth and grainy hummus.',tip:'Remove at least 70% of skins for silky results.', img:'photo-1547592180-85f173990554?w=700&q=85', timer:'5 min'},
+      {title:'Bloom the tahini',instruction:'In a food processor, blend tahini and lemon juice together for 90 seconds until pale, creamy and fluffy. This is called "blooming" the tahini and creates the silky base.',img:'photo-1596040033229-a9821ebd058d?w=700&q=85', timer:'2 min'},
+      {title:'Blend to mousse',instruction:'Add garlic cloves and all chickpeas. Blend for 4 minutes, scraping down sides. With the machine running, slowly pour in ice cold water, one tablespoon at a time, until hummus reaches a light, airy consistency.',tip:'The ice cold water is the restaurant secret — it emulsifies the tahini and makes hummus cloud-like.', img:'photo-1547592180-85f173990554?w=700&q=85', timer:'4 min'},
+      {title:'Season and plate',instruction:'Season generously with salt. Spread hummus into a wide bowl using the back of a spoon in a circular sweeping motion to create a well in the centre. Drizzle 3–4 tbsp olive oil into the well. Dust with smoked paprika.',img:'photo-1547592180-85f173990554?w=700&q=85'},
+      {title:'Garnish and serve',instruction:'Top with whole cooked chickpeas and fresh chopped parsley. Serve with warm pita on the side.',img:'photo-1547592180-85f173990554?w=700&q=85'},
+    ],
+    tips:[
+      {icon:'🧊',title:'Ice water — the restaurant secret',text:'Every Lebanese restaurant uses ice-cold water to blend. It emulsifies the tahini and creates that impossibly light, mousse-like texture.'},
+      {icon:'⏱️',title:'Blend for 5 full minutes',text:'Most home cooks under-blend hummus. It needs a minimum of 4–5 minutes of continuous blending.'},
+      {icon:'🥙',title:'Always serve with warm pita',text:'Cold pita with hummus is a crime. Toast or warm pita for 60 seconds in a dry pan.'},
+    ]
+  },
+  { id:9, name:'Bibimbap', cuisine:'Korean', course:'main', img:'photo-1590301157890-4810ed352733?w=800&q=85', rating:4.8, reviews:1980, time:'50 min', prepTime:'30 min', cookTime:'20 min', difficulty:'Medium', veg:false, servings:2,
+    desc:'Korean "mixed rice" — a beautifully composed bowl of individually seasoned vegetables, marinated beef, a fried egg, and fiery gochujang, designed to be mixed chaotically at the table.',
+    nutrition:{calories:560, protein:'34g', carbs:'78g', fat:'14g', fiber:'7g'},
+    ingredients:[
+      {name:'Short-Grain Rice',qty:'2 cups',unit:'cooked, warm',img:'photo-1536304993881-ff86e0c9c6a5?w=300&q=80'},
+      {name:'Baby Spinach',qty:'100g',unit:'blanched, squeezed dry',img:'photo-1576045057995-568f588f82fb?w=300&q=80'},
+      {name:'Carrot',qty:'1 large',unit:'julienned',img:'photo-1598170845058-32b9d6a5da37?w=300&q=80'},
+      {name:'Shiitake Mushrooms',qty:'6 large',unit:'sliced',img:'photo-1597004264565-ebf8f5c0ae83?w=300&q=80'},
+      {name:'Eggs',qty:'2',unit:'fried sunny-side up',img:'photo-1569288052389-dac9b01c9c05?w=300&q=80'},
+      {name:'Gochujang',qty:'2–3 tbsp',unit:'Korean fermented chili paste',img:'photo-1590301157890-4810ed352733?w=300&q=80'},
+      {name:'Sesame Oil',qty:'2 tbsp',unit:'toasted',img:'photo-1474979266404-7eaacbcd87c5?w=300&q=80'},
+      {name:'Beef Sirloin',qty:'200g',unit:'thinly sliced',img:'photo-1604503468506-a8da13d82791?w=300&q=80'},
+      {name:'Soy Sauce',qty:'3 tbsp',unit:'',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Sesame Seeds',qty:'1 tbsp',unit:'toasted, to garnish',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+    ],
+    steps:[
+      {title:'Marinate the beef',instruction:'Slice beef very thinly across the grain. Marinate in 2 tbsp soy sauce, 1 tsp sesame oil, 1 tsp sugar, 2 minced garlic cloves, and black pepper. Rest 20 minutes.',tip:'Thin slicing is critical — thick beef takes too long to cook and turns tough.', img:'photo-1604503468506-a8da13d82791?w=700&q=85', timer:'20 min'},
+      {title:'Prepare each vegetable',instruction:'This is the Bibimbap principle — each vegetable is seasoned and cooked individually. Blanch spinach 30 sec, squeeze dry and toss with sesame oil and salt. Sauté carrot with garlic until tender. Sauté mushrooms with soy sauce until golden.',tip:'Never mix the vegetables while cooking — each gets its own flavour treatment.', img:'photo-1590301157890-4810ed352733?w=700&q=85', timer:'15 min'},
+      {title:'Stir fry the beef',instruction:'Heat a skillet on high heat. Add marinated beef and stir-fry 2–3 minutes until cooked through with caramelized edges.',img:'photo-1604503468506-a8da13d82791?w=700&q=85', timer:'3 min'},
+      {title:'Fry the eggs',instruction:'Fry eggs sunny-side up in sesame oil on medium-low heat — white fully set, yolk still runny. The runny yolk becomes the sauce when mixed.',tip:'Do not flip. The runny yolk is the sauce.', img:'photo-1569288052389-dac9b01c9c05?w=700&q=85'},
+      {title:'Compose the bowl',instruction:'Place warm rice in a wide, deep bowl. Arrange each vegetable in separate sections around the rice like sections of a compass. Place beef in one section. Nestle fried egg in the centre. Drizzle sesame oil. Add a spoonful of gochujang on top.',img:'photo-1590301157890-4810ed352733?w=700&q=85'},
+      {title:'Mix vigorously and eat',instruction:'Present the bowl as arranged — pause to appreciate it — then mix everything together vigorously until fully combined. The gochujang, runny yolk and sesame oil form an extraordinary sauce that coats every grain of rice.',tip:'Bibimbap must be mixed immediately and eaten right away.', img:'photo-1590301157890-4810ed352733?w=700&q=85'},
+    ],
+    tips:[
+      {icon:'🥚',title:'The runny yolk is the sauce',text:'The fried egg with its runny yolk is the secret sauce of Bibimbap. When you mix the bowl, it coats the rice. Never use a hard-cooked egg.'},
+      {icon:'🎨',title:'Composition matters',text:'Arrange colours in alternating contrast — green spinach next to orange carrot next to dark mushroom. The visual presentation before mixing is part of the dish.'},
+      {icon:'🌶️',title:'Gochujang is not optional',text:'There is no substitute for fermented gochujang. Hot sauce, sriracha, or chili flakes are completely different flavour profiles.'},
+    ]
+  },
+  { id:10, name:'Crêpes Suzette', cuisine:'French', course:'desserts', img:'photo-1519676867240-f03562e64548?w=800&q=85', rating:4.7, reviews:980, time:'30 min', prepTime:'10 min', cookTime:'20 min', difficulty:'Medium', veg:true, servings:4,
+    desc:"The most theatrical dessert in French cuisine — delicate crêpes flambéed in a blazing orange-butter-Grand Marnier caramel. Named after a mishap at Monte Carlo in 1895.",
+    nutrition:{calories:340, protein:'8g', carbs:'38g', fat:'16g', fiber:'1g'},
+    ingredients:[
+      {name:'All-purpose Flour',qty:'1 cup',unit:'125g, sifted',img:'photo-1574323347407-f5e1ad6d020b?w=300&q=80'},
+      {name:'Eggs',qty:'3 large',unit:'',img:'photo-1569288052389-dac9b01c9c05?w=300&q=80'},
+      {name:'Whole Milk',qty:'1½ cups',unit:'350ml',img:'photo-1550583724-b2692b85b150?w=300&q=80'},
+      {name:'Unsalted Butter',qty:'4 tbsp',unit:'56g, melted, divided',img:'photo-1589985270826-4b7bb135bc9d?w=300&q=80'},
+      {name:'Orange',qty:'2 large',unit:'zest of both + juice of 1',img:'photo-1587486913049-53fc88980cfc?w=300&q=80'},
+      {name:'Grand Marnier',qty:'3 tbsp',unit:'or Cointreau',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Granulated Sugar',qty:'¼ cup',unit:'50g',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+    ],
+    steps:[
+      {title:'Make and rest the batter',instruction:'Whisk flour, eggs, milk, melted butter, a pinch of salt and 1 tsp sugar together until smooth. Rest 30 minutes at room temperature — this allows gluten to relax and produces tender, non-rubbery crêpes.',tip:'Resting the batter is not optional. Fresh batter makes tough crêpes.', img:'photo-1519676867240-f03562e64548?w=700&q=85', timer:'30 min'},
+      {title:'Cook the crêpes',instruction:'Heat a 9-inch non-stick pan on medium. Brush with a tiny amount of butter. Pour 3 tbsp batter and immediately tilt the pan to spread into a thin round. Cook 60–90 seconds until edges are dry. Flip and cook 30 seconds. Stack as you go.',tip:"The first crêpe is always the test crêpe — toss it. The pan isn't calibrated yet.", img:'photo-1519676867240-f03562e64548?w=700&q=85', timer:'20 min'},
+      {title:'Make the orange-butter sauce',instruction:'In a wide shallow pan, melt butter and sugar over medium heat, stirring, until sugar turns amber and begins to caramelize. Add orange zest and juice immediately. Cook 2 minutes.',img:'photo-1519676867240-f03562e64548?w=700&q=85', timer:'5 min'},
+      {title:'Fold crêpes in sauce',instruction:'Lay crêpes one at a time in the orange sauce, fold in half then in half again to form triangles, and arrange overlapping in the pan. Spoon hot sauce over each one.',img:'photo-1519676867240-f03562e64548?w=700&q=85'},
+      {title:'Flambé and serve',instruction:'Remove pan from heat. Pour Grand Marnier over the crêpes. Return to heat for 30 seconds. Carefully tilt the pan toward the flame (or use a long lighter) to ignite. The flames will be 12–18 inches high. Gently shake until flames die naturally.',tip:'Keep face and hair away from the pan. Have a lid ready to smother if needed.', img:'photo-1519676867240-f03562e64548?w=700&q=85'},
+    ],
+    tips:[
+      {icon:'🔥',title:'Flambéing safely',text:'Use a long-handled pan. The alcohol burns off in seconds — if flames persist beyond 30 sec, smother with the lid.'},
+      {icon:'🍊',title:'Fresh orange only',text:'Bottled orange juice makes a mediocre Suzette sauce. Only fresh-squeezed orange with its natural oils creates the proper caramel.'},
+      {icon:'⏰',title:'Crêpes can be made ahead',text:'Make all crêpes up to 24 hours ahead, stack separated by parchment, and refrigerate. The sauce is made just before serving.'},
+    ]
+  },
+  { id:11, name:'Samosa', cuisine:'Indian', course:'snacks', img:'photo-1601050690597-df0568f70950?w=800&q=85', rating:4.7, reviews:2340, time:'50 min', prepTime:'30 min', cookTime:'20 min', difficulty:'Medium', veg:true, servings:12,
+    desc:"The golden triangle — crisp, flaky pastry encasing a fiercely spiced potato and pea filling. Served with sharp tamarind chutney and cooling mint chutney. India's most beloved snack.",
+    nutrition:{calories:180, protein:'4g', carbs:'26g', fat:'8g', fiber:'3g'},
+    ingredients:[
+      {name:'All-purpose Flour',qty:'2 cups',unit:'plus extra for dusting',img:'photo-1574323347407-f5e1ad6d020b?w=300&q=80'},
+      {name:'Potatoes',qty:'3 medium',unit:'boiled, peeled, roughly mashed',img:'photo-1518977676601-b53f82aba655?w=300&q=80'},
+      {name:'Green Peas',qty:'½ cup',unit:'fresh or frozen',img:'photo-1576045057995-568f588f82fb?w=300&q=80'},
+      {name:'Cumin Seeds',qty:'1 tsp',unit:'',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Coriander Powder',qty:'2 tsp',unit:'',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Fresh Ginger',qty:'1 tsp',unit:'grated',img:'photo-1603130736427-95a68baee53a?w=300&q=80'},
+      {name:'Green Chili',qty:'2',unit:'finely chopped',img:'photo-1518977676601-b53f82aba655?w=300&q=80'},
+      {name:'Oil',qty:'500ml',unit:'for deep frying + 3 tbsp for dough',img:'photo-1474979266404-7eaacbcd87c5?w=300&q=80'},
+      {name:'Ajwain',qty:'½ tsp',unit:'carom seeds, in dough',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Amchur Powder',qty:'1 tsp',unit:'dried mango powder',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+    ],
+    steps:[
+      {title:'Make the dough',instruction:'Combine flour, ajwain seeds, ½ tsp salt, and 3 tbsp oil. Rub oil into flour with your fingertips until it resembles breadcrumbs — this creates the flaky texture. Add cold water gradually (about 5–6 tbsp), kneading to a stiff, non-sticky dough. Cover and rest 30 minutes.',tip:'The dough must be stiffer than bread dough — soft dough makes soft, non-flaky samosas.', img:'photo-1574323347407-f5e1ad6d020b?w=700&q=85', timer:'30 min'},
+      {title:'Make the filling',instruction:'Heat 2 tbsp oil in a pan. Add cumin seeds and let them sizzle 30 seconds. Add ginger and green chili, cook 1 minute. Add peas, cook 3 minutes. Add mashed potato, coriander powder, amchur, garam masala, and salt. Cook 3–4 minutes on low. Cool completely before filling.',tip:'The filling must be completely cool — hot filling creates steam that blows open the samosa.', img:'photo-1601050690597-df0568f70950?w=700&q=85', timer:'10 min'},
+      {title:'Shape the samosas',instruction:'Divide dough into 6 equal balls. Roll each into a 7-inch oval, then cut in half to form 2 semicircles. Bring the straight edge together to form a cone, sealing with water. Fill with 2 tbsp filling, pinch the top edge firmly closed with a pleated crimp.',tip:'The seal is everything — a poorly sealed samosa explodes in the oil.', img:'photo-1601050690597-df0568f70950?w=700&q=85'},
+      {title:'Fry low and slow',instruction:'Heat oil to 160°C/320°F — deliberately lower than normal frying temperature. Add samosas in batches of 4–5. Fry for 10–12 minutes on low-medium heat, turning occasionally, until deep golden-brown.',tip:'The low temperature is intentional — too hot gives a pale, uncooked interior despite a dark exterior.', img:'photo-1601050690597-df0568f70950?w=700&q=85', timer:'12 min'},
+      {title:'Drain and serve',instruction:'Remove samosas with a slotted spoon and drain on a wire rack (never paper — steam makes them soggy). Serve immediately with tamarind chutney and mint chutney.',img:'photo-1601050690597-df0568f70950?w=700&q=85'},
+    ],
+    tips:[
+      {icon:'❄️',title:'Filling must be cold',text:'Hot filling creates steam inside the samosa which makes it burst open during frying. Always cook the filling ahead and let it cool completely.'},
+      {icon:'🌡️',title:'Fry low and slow',text:'160°C is unusually low for frying but is correct for samosas. The thick pastry needs time to cook all the way through.'},
+      {icon:'💧',title:'Dough hydration matters',text:'Add water teaspoon by teaspoon. Too much water = soft, bread-like samosa. The dough should feel like firm putty.'},
+    ]
+  },
+  { id:12, name:'Ramen', cuisine:'Japanese', course:'main', img:'photo-1569050467447-ce54b3bbc37d?w=800&q=85', rating:4.8, reviews:2890, time:'4 hrs', prepTime:'30 min', cookTime:'4 hrs', difficulty:'Hard', veg:false, servings:4,
+    desc:'Tonkotsu ramen from Fukuoka — a creamy, opaque pork bone broth achieved through hours of vigorous boiling, served with springy noodles, chashu pork belly, and a soy-marinated soft egg.',
+    nutrition:{calories:680, protein:'42g', carbs:'74g', fat:'24g', fiber:'4g'},
+    ingredients:[
+      {name:'Fresh Ramen Noodles',qty:'400g',unit:'or 200g dried',img:'photo-1569050467447-ce54b3bbc37d?w=300&q=80'},
+      {name:'Pork Bones',qty:'1.5 kg',unit:'trotters and back bones',img:'photo-1604503468506-a8da13d82791?w=300&q=80'},
+      {name:'Pork Belly',qty:'600g',unit:'skin-on slab for chashu',img:'photo-1604503468506-a8da13d82791?w=300&q=80'},
+      {name:'Soy Sauce',qty:'6 tbsp',unit:'for tare and egg marinade',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Mirin',qty:'3 tbsp',unit:'for chashu and tare',img:'photo-1596040033229-a9821ebd058d?w=300&q=80'},
+      {name:'Eggs',qty:'4 large',unit:'soft-boiled exactly 6.5 min',img:'photo-1569288052389-dac9b01c9c05?w=300&q=80'},
+      {name:'Nori',qty:'8 sheets',unit:'halved',img:'photo-1617196034183-421b4040ed20?w=300&q=80'},
+      {name:'Green Onion',qty:'4 stalks',unit:'thinly sliced',img:'photo-1576045057995-568f588f82fb?w=300&q=80'},
+      {name:'Bamboo Shoots',qty:'80g',unit:'menma, drained',img:'photo-1576045057995-568f588f82fb?w=300&q=80'},
+      {name:'Garlic',qty:'1 head',unit:'halved crosswise',img:'photo-1540420773420-3366772f4999?w=300&q=80'},
+    ],
+    steps:[
+      {title:'Blanch and clean the bones',instruction:'Place pork bones in a large pot. Cover with cold water and bring to a vigorous boil for 10 minutes. Drain and rinse every bone under cold running water, removing all grey scum and blood. This step removes impurities and is critical for a clean-tasting broth.',tip:'Do not skip this — the grey scum creates an unpleasant bitter aftertaste.', img:'photo-1604503468506-a8da13d82791?w=700&q=85', timer:'15 min'},
+      {title:'Boil the tonkotsu broth',instruction:'Return cleaned bones to the pot with 4 litres cold water. Add halved garlic head. Bring to a HARD, rolling boil and maintain at this vigorous boil for 3–4 hours, adding water as needed. The hard boil emulsifies collagen and fat, creating the creamy white appearance.',tip:'A gentle simmer makes a clear broth. Only a hard boil creates creamy tonkotsu.', img:'photo-1569050467447-ce54b3bbc37d?w=700&q=85', timer:'240 min'},
+      {title:'Make the chashu pork',instruction:'Roll pork belly tightly skin-side out and tie with kitchen twine at 1-inch intervals. Brown all sides over high heat. Transfer to a pot with soy sauce, mirin, sake, sugar, and water to barely cover. Simmer on low heat for 2 hours until very tender.',tip:'Pressing the roll flat under a heavy plate while cooling gives clean round slices.', img:'photo-1604503468506-a8da13d82791?w=700&q=85', timer:'120 min'},
+      {title:'Marinated soft egg',instruction:'Bring water to a hard boil. Gently lower room-temperature eggs in. Boil exactly 6 minutes 30 seconds. Transfer immediately to ice water for 5 minutes. Peel carefully and marinate in 3 tbsp soy sauce + 1 tbsp mirin + ½ cup water for 4 hours minimum.',tip:'Room-temperature eggs = consistent cooking. Cold fridge eggs crack and cook unevenly.', img:'photo-1569288052389-dac9b01c9c05?w=700&q=85', timer:'395 min'},
+      {title:'Make the tare',instruction:'In a small saucepan, combine 4 tbsp soy sauce, 2 tbsp mirin, 1 tbsp sake and simmer. Reduce by 20%. This concentrated seasoning paste is added to each bowl individually.',img:'photo-1596040033229-a9821ebd058d?w=700&q=85', timer:'5 min'},
+      {title:'Assemble the bowls',instruction:'Cook noodles in vigorously boiling water per package directions, drain. Place 1–2 tbsp tare in the bottom of a pre-warmed bowl. Ladle in very hot tonkotsu broth. Add noodles. Arrange 3 slices chashu, halved egg, nori sheet, bamboo shoots and green onions. Serve immediately.',tip:'Pre-warm bowls with boiling water for 2 minutes. Cold bowls cool ramen in 90 seconds.', img:'photo-1569050467447-ce54b3bbc37d?w=700&q=85'},
+    ],
+    tips:[
+      {icon:'⏰',title:'4 hours is minimum',text:'You cannot rush tonkotsu broth. The collagen needs 3–4 hours of hard boiling to break down. A 1-hour tonkotsu is thin soup.'},
+      {icon:'🔥',title:'Hard boil, not simmer',text:'Tonkotsu is the one exception to the "always simmer" stock rule. The hard rolling boil is what makes it thick and white.'},
+      {icon:'🥚',title:'Egg timing is sacred',text:'6:30 is the magic number — fully set white, molten jammy yolk. 6 min = too loose; 7 min = too firm. Set a timer.'},
+    ]
+  },
+];
+
+const INGREDIENTS = [
+  { id:1, name:'Tomato', img:'photo-1558618666-fcd25c85cd64?w=300&q=80', count:342, desc:'The backbone of sauces worldwide. San Marzano varieties are prized for their sweetness; cherry tomatoes add freshness to salads and pastas.' },
+  { id:2, name:'Garlic', img:'photo-1540420773420-3366772f4999?w=300&q=80', count:410, desc:'The most universally used aromatic in world cooking. Raw garlic bites; cooked garlic sweetens. The foundation of almost every savoury cuisine.' },
+  { id:3, name:'Ginger', img:'photo-1603130736427-95a68baee53a?w=300&q=80', count:280, desc:'A rhizome with a sharp, warm heat and citrus notes. Essential in Indian, Chinese, Thai and Japanese cooking. Used both fresh and dried.' },
+  { id:4, name:'Onion', img:'photo-1618512496248-a07fe83aa8cb?w=300&q=80', count:380, desc:'The first building block of nearly every cuisine on earth. Slowly caramelized onions add deep sweetness; raw onions add sharp bite.' },
+  { id:5, name:'Chicken', img:'photo-1604503468506-a8da13d82791?w=300&q=80', count:220, desc:'The world\'s most versatile protein. Thighs stay moist during braising; breasts suit quick cooking. Bone-in pieces add flavour to stocks.' },
+  { id:6, name:'Rice', img:'photo-1536304993881-ff86e0c9c6a5?w=300&q=80', count:190, desc:'The staple grain of more than half the world\'s population. Basmati for Indian; short-grain for Japanese sushi and Korean bibimbap; jasmine for Thai.' },
+  { id:7, name:'Lemon', img:'photo-1587486913049-53fc88980cfc?w=300&q=80', count:260, desc:'Acid brightens and balances every dish. Zest carries intense flavour from the essential oils; juice provides clean tartness.' },
+  { id:8, name:'Olive Oil', img:'photo-1474979266404-7eaacbcd87c5?w=300&q=80', count:310, desc:'The liquid gold of Mediterranean cooking. Extra virgin for finishing and dressings; pure olive oil for higher-heat cooking.' },
+  { id:9, name:'Coconut Milk', img:'photo-1588710929771-a5870d3f0ae4?w=300&q=80', count:140, desc:'Extracted from mature coconut flesh, it adds rich creaminess to Thai curries, Indian coastal dishes, and Caribbean stews.' },
+  { id:10, name:'Chili', img:'photo-1518977676601-b53f82aba655?w=300&q=80', count:290, desc:'Heat and flavour vary wildly across varieties. Kashmiri adds colour without much heat; bird\'s eye chili brings intense fire; jalapeño offers mild warmth.' },
+  { id:11, name:'Eggs', img:'photo-1569288052389-dac9b01c9c05?w=300&q=80', count:330, desc:'A complete protein that binds, emulsifies, sets and rises. The most versatile ingredient in cooking. Yolk temperature makes or breaks a ramen bowl.' },
+  { id:12, name:'Flour', img:'photo-1574323347407-f5e1ad6d020b?w=300&q=80', count:240, desc:'All-purpose flour forms the structure of pastries, breads and batters. The protein content determines whether the result is tender or chewy.' },
+  { id:13, name:'Cheese', img:'photo-1486297678162-eb2a19b0a32d?w=300&q=80', count:200, desc:'Thousands of varieties exist worldwide. Mozzarella melts beautifully on pizza; Parmesan adds umami depth; feta brings salty brightness.' },
+  { id:14, name:'Salmon', img:'photo-1574781330855-d0db8cc6a79c?w=300&q=80', count:110, desc:'Rich in omega-3 fatty acids with a buttery, mild flavour. Works raw in sushi and sashimi, or cooked in countless preparations worldwide.' },
+  { id:15, name:'Mango', img:'photo-1553279768-865429fa0078?w=300&q=80', count:95, desc:'The king of tropical fruits. Alphonso mangoes from India are the gold standard — incredibly sweet and fragrant. Used in desserts, chutneys, and fresh.' },
+  { id:16, name:'Basil', img:'photo-1562158079-e5e1a8b8b859?w=300&q=80', count:170, desc:'The herb of Italian cooking. Sweet basil pairs with tomato and cheese. Thai basil has an anise note essential in stir-fries and curries.' },
+];
+
+const BEVERAGES = [
+  { id:1, name:'Mango Lassi', type:'Mocktail', origin:'India', img:'photo-1553361371-9b22f78e8b1d?w=400&q=80', desc:'Chilled yogurt blended with sweet Alphonso mango and a hint of cardamom.' },
+  { id:2, name:'Matcha Latte', type:'Hot Drink', origin:'Japan', img:'photo-1536256263959-770b48d82b0a?w=400&q=80', desc:'Ceremonial grade matcha whisked with steamed oat milk and a touch of honey.' },
+  { id:3, name:'Watermelon Mint Cooler', type:'Mocktail', origin:'Middle East', img:'photo-1541518763669-27fef04b14ea?w=400&q=80', desc:'Blended watermelon with fresh mint, lime and a splash of rose water.' },
+  { id:4, name:'Tamarind Agua Fresca', type:'Juice', origin:'Mexico', img:'photo-1570197788417-0e82375c9371?w=400&q=80', desc:'Tangy tamarind concentrate blended with water, sugar and served ice cold.' },
+  { id:5, name:'Thai Iced Tea', type:'Iced Tea', origin:'Thailand', img:'photo-1499638673689-79a0b5115d87?w=400&q=80', desc:'Strong spiced Ceylon tea sweetened and topped with creamy condensed milk.' },
+  { id:6, name:'Virgin Mojito', type:'Mocktail', origin:'Cuba', img:'photo-1551538827-9c037cb4f32a?w=400&q=80', desc:'Muddled mint leaves, fresh lime juice, sugar syrup and sparkling water on ice.' },
+  { id:7, name:'Rose Sharbat', type:'Cooler', origin:'Iran', img:'photo-1513558161293-cdaf765ed2fd?w=400&q=80', desc:'Chilled rose water with basil seeds, sugar and a squeeze of lemon.' },
+  { id:8, name:'Horchata', type:'Drink', origin:'Mexico', img:'photo-1553361371-9b22f78e8b1d?w=400&q=80', desc:'Creamy rice-based drink flavored with cinnamon and vanilla, served over ice.' },
+];
+
+const TRANSLATIONS = {
+  en: {
+    heroTitle: 'The World\'s<br/><em>Kitchens,</em><span class="line2">in Your Hands.</span>',
+    heroSub: 'From smoky Indian tandoors to Japanese ramen stalls — cook authentic dishes from every corner of the planet.',
+    heroCta1: '🍽️ Explore Dishes',
+    heroCta2: '✨ AI Chef — Cook from pantry',
+    statDishes: 'Recipes',
+    statCuisines: 'Cuisines',
+    statIngredients: 'Ingredients',
+    cuisineLabel: 'Explore by Cuisine',
+    cuisineTitle: 'World Cuisines',
+    cuisineSub: 'From the spice markets of India to the trattorias of Italy',
+    courseTitle: 'All Dishes',
+    ingTitle: 'Explore by Ingredient',
+    ingSub: 'Tap any ingredient to see all dishes that use it',
+    bevTitle: 'Drinks & Mocktails',
+    aiDesc: 'Tell us what\'s in your fridge and we\'ll suggest the perfect dishes.',
+    aiPlaceholderText: 'Add your ingredients and I\'ll find the perfect recipe!',
+  },
+  hi: {
+    heroTitle: 'दुनिया के हर<br/><em>स्वाद को चखिए</em>',
+    heroSub: 'स्ट्रीट फूड से लेकर फाइन डाइनिंग तक — दुनिया भर के असली व्यंजन खोजें।',
+    heroCta1: 'व्यंजन खोजें',
+    heroCta2: '✨ AI शेफ — फ्रिज से पकाएं',
+    statDishes: 'रेसिपी',
+    statCuisines: 'व्यंजन-शैली',
+    statIngredients: 'सामग्री',
+    cuisineLabel: 'व्यंजन-शैली से खोजें',
+    cuisineTitle: 'विश्व के व्यंजन',
+    cuisineSub: 'भारत के मसाला बाजार से लेकर इटली की ट्रैटोरिया तक',
+    courseTitle: 'सभी व्यंजन',
+    ingTitle: 'सामग्री से खोजें',
+    ingSub: 'किसी भी सामग्री पर टैप करें',
+    bevTitle: 'पेय और मॉकटेल',
+    aiDesc: 'बताएं आपके फ्रिज में क्या है और हम सही रेसिपी सुझाएंगे।',
+    aiPlaceholderText: 'सामग्री जोड़ें और मैं रेसिपी ढूंढूंगा!',
+  },
+  es: {
+    heroTitle: 'Saborea Cada<br/><em>Rincón del Mundo</em>',
+    heroSub: 'Desde la comida callejera hasta la alta cocina — descubre recetas auténticas.',
+    heroCta1: 'Explorar Platos',
+    heroCta2: '✨ Chef IA — Cocina con tu despensa',
+    statDishes: 'Recetas',
+    statCuisines: 'Cocinas',
+    statIngredients: 'Ingredientes',
+    cuisineLabel: 'Explorar por Cocina',
+    cuisineTitle: 'Cocinas del Mundo',
+    cuisineSub: 'Desde los mercados de especias de India hasta las trattorias de Italia',
+    courseTitle: 'Todos los platos',
+    ingTitle: 'Explorar por Ingrediente',
+    ingSub: 'Toca un ingrediente para ver todos los platos',
+    bevTitle: 'Bebidas y Mocktails',
+    aiDesc: 'Dinos qué hay en tu nevera y te sugeriremos los platos perfectos.',
+    aiPlaceholderText: '¡Agrega tus ingredientes y encontraré la receta perfecta!',
+  },
+  fr: {
+    heroTitle: 'Goûtez Chaque<br/><em>Coin du Monde</em>',
+    heroSub: 'De la cuisine de rue à la gastronomie — découvrez des recettes authentiques.',
+    heroCta1: 'Explorer les plats',
+    heroCta2: '✨ Chef IA — Cuisinez avec votre garde-manger',
+    statDishes: 'Recettes',
+    statCuisines: 'Cuisines',
+    statIngredients: 'Ingrédients',
+    cuisineLabel: 'Explorer par Cuisine',
+    cuisineTitle: 'Cuisines du Monde',
+    cuisineSub: 'Des marchés aux épices d\'Inde aux trattorias d\'Italie',
+    courseTitle: 'Tous les plats',
+    ingTitle: 'Explorer par Ingrédient',
+    ingSub: 'Touchez un ingrédient pour voir tous les plats',
+    bevTitle: 'Boissons et Mocktails',
+    aiDesc: 'Dites-nous ce qu\'il y a dans votre réfrigérateur.',
+    aiPlaceholderText: 'Ajoutez vos ingrédients et je trouverai la recette parfaite!',
+  },
+  ar: {
+    heroTitle: 'تذوّق كل<br/><em>زاوية من الأرض</em>',
+    heroSub: 'من طعام الشارع إلى المطاعم الراقية — اكتشف الوصفات الأصيلة.',
+    heroCta1: 'استكشف الأطباق',
+    heroCta2: '✨ الشيف الذكي',
+    statDishes: 'وصفة',
+    statCuisines: 'مطبخ',
+    statIngredients: 'مكوّن',
+    cuisineLabel: 'استكشف حسب المطبخ',
+    cuisineTitle: 'مطابخ العالم',
+    cuisineSub: 'من أسواق التوابل في الهند إلى تراتوريا إيطاليا',
+    courseTitle: 'جميع الأطباق',
+    ingTitle: 'استكشف حسب المكوّن',
+    ingSub: 'اضغط على أي مكوّن لرؤية جميع الأطباق',
+    bevTitle: 'المشروبات والموكتيل',
+    aiDesc: 'أخبرنا بما في ثلاجتك وسنقترح الأطباق المناسبة.',
+    aiPlaceholderText: 'أضف مكوناتك وسأجد الوصفة المثالية!',
+  },
+  ja: {
+    heroTitle: '地球の隅々の<br/><em>味を体験しよう</em>',
+    heroSub: 'ストリートフードから高級料理まで — 世界の本格レシピを発見。',
+    heroCta1: '料理を探す',
+    heroCta2: '✨ AIシェフ — 冷蔵庫の食材で調理',
+    statDishes: 'レシピ',
+    statCuisines: '料理',
+    statIngredients: '食材',
+    cuisineLabel: '料理で探す',
+    cuisineTitle: '世界の料理',
+    cuisineSub: 'インドのスパイス市場からイタリアのトラットリアまで',
+    courseTitle: 'すべての料理',
+    ingTitle: '食材で探す',
+    ingSub: '食材をタップして使用レシピを表示',
+    bevTitle: 'ドリンク＆モクテル',
+    aiDesc: '冷蔵庫の食材を教えてください。最適なレシピを提案します。',
+    aiPlaceholderText: '食材を追加してレシピを見つけましょう！',
+  },
+  zh: { heroTitle: '品味地球每个<br/><em>角落的美食</em>', heroSub: '从街头小吃到精致料理——发现来自世界各地的正宗食谱。', heroCta1: '探索菜肴', heroCta2: '✨ AI厨师', statDishes: '食谱', statCuisines: '菜系', statIngredients: '食材', cuisineLabel: '按菜系探索', cuisineTitle: '世界菜系', cuisineSub: '从印度香料市场到意大利小餐馆', courseTitle: '所有菜肴', ingTitle: '按食材探索', ingSub: '点击任意食材查看相关菜肴', bevTitle: '饮品和无酒精鸡尾酒', aiDesc: '告诉我你冰箱里有什么，我们将推荐完美菜肴。', aiPlaceholderText: '添加食材，我来找完美食谱！' },
+  de: { heroTitle: 'Schmecke Jeden<br/><em>Winkel der Erde</em>', heroSub: 'Von Straßenküche bis Gourmet — entdecke authentische Rezepte aus aller Welt.', heroCta1: 'Gerichte erkunden', heroCta2: '✨ KI-Koch — aus Vorrat kochen', statDishes: 'Rezepte', statCuisines: 'Küchen', statIngredients: 'Zutaten', cuisineLabel: 'Nach Küche erkunden', cuisineTitle: 'Weltküchen', cuisineSub: 'Von Indiens Gewürzmärkten bis zu Italiens Trattorias', courseTitle: 'Alle Gerichte', ingTitle: 'Nach Zutat erkunden', ingSub: 'Tippe eine Zutat an', bevTitle: 'Getränke & Mocktails', aiDesc: 'Sag uns, was in deinem Kühlschrank ist.', aiPlaceholderText: 'Füge Zutaten hinzu und ich finde das perfekte Rezept!' },
+  pt: { heroTitle: 'Saboreie Cada<br/><em>Canto do Mundo</em>', heroSub: 'Da comida de rua à alta gastronomia — descubra receitas autênticas.', heroCta1: 'Explorar Pratos', heroCta2: '✨ Chef IA', statDishes: 'Receitas', statCuisines: 'Cozinhas', statIngredients: 'Ingredientes', cuisineLabel: 'Explorar por Cozinha', cuisineTitle: 'Cozinhas do Mundo', cuisineSub: 'Dos mercados de especiarias da Índia às trattorias da Itália', courseTitle: 'Todos os pratos', ingTitle: 'Explorar por Ingrediente', ingSub: 'Toque um ingrediente', bevTitle: 'Bebidas e Mocktails', aiDesc: 'Diga-nos o que há na sua geladeira.', aiPlaceholderText: 'Adicione seus ingredientes!' },
+  ko: { heroTitle: '지구 구석구석의<br/><em>맛을 경험하세요</em>', heroSub: '길거리 음식부터 파인 다이닝까지 — 전 세계 정통 레시피를 발견하세요.', heroCta1: '요리 탐색', heroCta2: '✨ AI 셰프', statDishes: '레시피', statCuisines: '요리', statIngredients: '재료', cuisineLabel: '요리별 탐색', cuisineTitle: '세계 요리', cuisineSub: '인도 향신료 시장부터 이탈리아 트라토리아까지', courseTitle: '모든 요리', ingTitle: '재료로 탐색', ingSub: '재료를 탭하여 관련 요리 확인', bevTitle: '음료 & 목테일', aiDesc: '냉장고에 있는 재료를 알려주세요.', aiPlaceholderText: '재료를 추가하면 레시피를 찾아드릴게요!' },
+};
+
+// ── VERIFIED ingredient image map (Unsplash IDs confirmed to show correct food)
+const ING_IMGS = {
+  // Proteins
+  'chicken':        'photo-1604503468506-a8da13d82791',
+  'pork':           'photo-1529694157872-4e0c0f3b238b',
+  'beef':           'photo-1547050605-2d7fd3571d38',
+  'salmon':         'photo-1574781330855-d0db8cc6a79c',
+  'shrimp':         'photo-1565680018434-b513d5e5fd47',
+  'egg':            'photo-1569288052389-dac9b01c9c05',
+  'eggs':           'photo-1569288052389-dac9b01c9c05',
+  // Vegetables
+  'tomato':         'photo-1592924357228-91a4daadcfea',
+  'san marzano':    'photo-1592924357228-91a4daadcfea',
+  'onion':          'photo-1618512496248-a07fe83aa8cb',
+  'garlic':         'photo-1540420773420-3366772f4999',
+  'ginger':         'photo-1603130736427-95a68baee53a',
+  'chili':          'photo-1518977676601-b53f82aba655',
+  'green chili':    'photo-1518977676601-b53f82aba655',
+  'kashmiri chili': 'photo-1596040033229-a9821ebd058d',
+  'carrot':         'photo-1598170845058-32b9d6a5da37',
+  'spinach':        'photo-1576045057995-568f588f82fb',
+  'mushroom':       'photo-1504545102780-26774c1bb073',
+  'cucumber':       'photo-1449300079323-02e209d9d3a6',
+  'avocado':        'photo-1523049673857-eb18f1d7b578',
+  'potato':         'photo-1518977676601-b53f82aba655',
+  'peas':           'photo-1587049352851-8d4e89133924',
+  'bamboo shoots':  'photo-1583484963886-cfe2bff2945f',
+  'bean sprouts':   'photo-1576045057995-568f588f82fb',
+  'scallions':      'photo-1576045057995-568f588f82fb',
+  'green onion':    'photo-1576045057995-568f588f82fb',
+  'basil':          'photo-1562158079-e5e1a8b8b859',
+  'cilantro':       'photo-1562158079-e5e1a8b8b859',
+  'pineapple':      'photo-1550258987-190a2d41a8ba',
+  'mango':          'photo-1553279768-865429fa0078',
+  'lemon':          'photo-1587486913049-53fc88980cfc',
+  'lime':           'photo-1601882913765-438dc15e3a94',
+  'orange':         'photo-1547514701-42782101795e',
+  // Dairy
+  'cream':          'photo-1550583724-b2692b85b150',
+  'heavy cream':    'photo-1550583724-b2692b85b150',
+  'butter':         'photo-1589985270826-4b7bb135bc9d',
+  'yogurt':         'photo-1488477181946-6428a0291777',
+  'mozzarella':     'photo-1571091718767-18b5b1457add',
+  'fresh mozzarella':'photo-1571091718767-18b5b1457add',
+  'cheese':         'photo-1486297678162-eb2a19b0a32d',
+  'coconut milk':   'photo-1588710929771-a5870d3f0ae4',
+  'milk':           'photo-1563636619-e9143da7973b',
+  // Grains & dough
+  'rice':           'photo-1536304993881-ff86e0c9c6a5',
+  'ramen noodles':  'photo-1569050467447-ce54b3bbc37d',
+  'rice noodles':   'photo-1569050467447-ce54b3bbc37d',
+  'pasta':          'photo-1551462147-37885acc36f1',
+  'flour':          'photo-1574323347407-f5e1ad6d020b',
+  'pizza dough':    'photo-1571091655789-405eb7a3a3a8',
+  'nori':           'photo-1617196034183-421b4040ed20',
+  'sushi rice':     'photo-1536304993881-ff86e0c9c6a5',
+  'glutinous rice': 'photo-1536304993881-ff86e0c9c6a5',
+  'corn tortillas': 'photo-1565299585323-38d6b0865b47',
+  'pita':           'photo-1574071318508-1cdbab80d002',
+  // Spices & condiments
+  'garam masala':   'photo-1596040033229-a9821ebd058d',
+  'cumin':          'photo-1596040033229-a9821ebd058d',
+  'coriander':      'photo-1596040033229-a9821ebd058d',
+  'cinnamon':       'photo-1596040033229-a9821ebd058d',
+  'soy sauce':      'photo-1598348434459-af8b6f6ffce2',
+  'fish sauce':     'photo-1596040033229-a9821ebd058d',
+  'tamarind':       'photo-1596040033229-a9821ebd058d',
+  'gochujang':      'photo-1590301157890-4810ed352733',
+  'tahini':         'photo-1596040033229-a9821ebd058d',
+  'wasabi':         'photo-1591814468924-caf88d1232e1',
+  'mirin':          'photo-1598348434459-af8b6f6ffce2',
+  // Oils & fats
+  'olive oil':      'photo-1474979266404-7eaacbcd87c5',
+  'oil':            'photo-1474979266404-7eaacbcd87c5',
+  'sesame oil':     'photo-1474979266404-7eaacbcd87c5',
+  // Nuts & seeds
+  'peanuts':        'photo-1567892737950-30e9e3a7d45e',
+  'sesame seeds':   'photo-1596040033229-a9821ebd058d',
+  // Sweet
+  'sugar':          'photo-1558618666-fcd25c85cd64',
+  'palm sugar':     'photo-1596040033229-a9821ebd058d',
+  'dark chocolate': 'photo-1606312619070-d48b4c652a52',
+  'grand marnier':  'photo-1569529465841-dfecdab7503b',
+  // Bread
+  'chickpeas':      'photo-1580910051074-3eb694886505',
+  'pork belly':     'photo-1529694157872-4e0c0f3b238b',
+  'pork bones':     'photo-1529694157872-4e0c0f3b238b',
+};
+
+// ── SUBSTITUTE database — common alternatives for hard-to-find ingredients
+const SUBSTITUTES = {
+  'heavy cream':      'coconut cream or full-fat milk + 1 tbsp butter',
+  'fresh mozzarella': 'low-moisture mozzarella block, or ricotta',
+  'san marzano tomatoes': 'any good quality canned plum tomatoes + pinch of sugar',
+  'pizza dough':      'store-bought dough, naan, or pita bread',
+  'grand marnier':    'any orange liqueur, orange juice + 1 tsp zest',
+  'tamarind paste':   'lime juice + brown sugar (1:1 ratio)',
+  'fish sauce':       'soy sauce + dash of lime juice',
+  'palm sugar':       'brown sugar or coconut sugar',
+  'gochujang':        'sriracha + 1 tsp miso paste',
+  'kashmiri chili':   'paprika + pinch of cayenne for colour',
+  'tahini':           'sunflower seed butter or almond butter',
+  'mirin':            'rice wine + 1 tsp sugar, or dry sherry',
+  'rice vinegar':     'white wine vinegar or apple cider vinegar',
+  'pork belly':       'thick-cut bacon or pancetta',
+  'glutinous rice':   'short-grain Japanese rice (texture differs slightly)',
+  'lemongrass':       'lemon zest + lime zest',
+  'nori':             'rice paper sheets (for rolling)',
+  'sushi rice':       'any short-grain rice with vinegar seasoning',
+  'achiote paste':    '2 tsp smoked paprika + 1 tsp turmeric + 1 tsp cumin',
+  'kasuri methi':     'dried oregano or fresh fenugreek leaves',
+  'ajwain':           'dried thyme or caraway seeds',
+  'amchur powder':    'lemon juice or tamarind powder',
+  'bamboo shoots':    'water chestnuts or bean sprouts',
+  'pickled ginger':   'thinly sliced fresh ginger soaked in rice vinegar',
+  'dark chocolate':   'semi-sweet chocolate chips + 1 tsp cocoa powder',
+  'cream':            'coconut cream, or evaporated milk',
+  'yogurt':           'sour cream or buttermilk (for marinades)',
+  'fresh basil':      'dried basil (½ the quantity) or fresh mint',
+  'cilantro':         'flat-leaf parsley + squeeze of lime',
+  'sesame oil':       'a few toasted sesame seeds added instead',
+  'coconut milk':     'oat milk + 1 tbsp coconut oil, or Greek yogurt diluted',
+  'pork shoulder':    'chicken thighs (for tacos) or beef chuck',
+  'guajillo chilies': '2 tsp ancho chili powder + ½ tsp paprika',
+  'corn tortillas':   'flour tortillas or lettuce wraps',
+  'bean sprouts':     'shredded cabbage or julienned cucumber',
+  'tamarind':         'lime juice + brown sugar (2:1)',
+  'rice noodles':     'thin spaghetti or vermicelli soaked in water',
+  'peanuts':          'sunflower seeds or cashews (for allergies)',
+  'avocado':          'no direct substitute — use an extra roll or more cucumber',
+};
+
+// Get the right image for an ingredient name
+function getIngImage(ingName, fallbackImg) {
+  const key = ingName.toLowerCase().trim();
+  // Try exact match first
+  if (ING_IMGS[key]) return ING_IMGS[key] + '?w=300&q=80';
+  // Try partial match
+  for (const [k, v] of Object.entries(ING_IMGS)) {
+    if (key.includes(k) || k.includes(key.split(' ')[0])) return v + '?w=300&q=80';
+  }
+  // Fallback to provided img or generic food
+  return fallbackImg || 'photo-1546069901-ba9599a7e63c?w=300&q=80';
+}
+let currentCourse = 'all';
+let aiIngredients = [];
+let likedDishes = new Set();
+
+// ===========================
+// INIT
+// ===========================
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('hide');
+  }, 2200);
+
+  buildTicker();
+  buildCuisines();
+  buildCourseTabs();
+  buildDishes();
+  buildFeatured();
+  buildIngredients();
+  buildBeverages();
+  startLiveCounter();
+
+  // Keyboard shortcut for search
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && !e.target.matches('input, textarea')) {
+      e.preventDefault(); openSearch();
+    }
+    if (e.key === 'Escape') { closeSearch(); closeModal(); closeIngredientModal(); closeLang(); }
+  });
+});
+
+// ===========================
+// TICKER
+// ===========================
+function buildTicker() {
+  const items = ['🍛 Butter Chicken','🍕 Margherita Pizza','🍜 Pad Thai','🍣 Sushi Platter','🌮 Tacos al Pastor','🍰 Crêpes Suzette','🥘 Bibimbap','🧆 Hummus & Pita','🍝 Carbonara','🥗 Greek Salad','🍱 Bento Box','🧁 Churros','🍲 Ramen','🥧 Mango Lassi','🫔 Shawarma','🍜 Pho Bo'];
+  const ticker = document.getElementById('ticker');
+  const html = [...items,...items].map(i => `<div class="ticker-item"><span>✦</span>${i}</div>`).join('');
+  ticker.innerHTML = html;
+}
+
+// ===========================
+// LIVE COUNTER
+// ===========================
+function startLiveCounter() {
+  const el = document.getElementById('liveCount');
+  if (!el) return;
+  let base = 847;
+  setInterval(() => {
+    base += Math.floor(Math.random() * 5) - 2;
+    base = Math.max(800, Math.min(950, base));
+    el.textContent = base;
+  }, 3000);
+}
+
+// ===========================
+// CUISINES
+// ===========================
+function buildCuisines() {
+  const grid = document.getElementById('cuisineGrid');
+  grid.innerHTML = CUISINES.map(c => `
+    <div class="cuisine-card" onclick="filterByCuisine('${c.id}')">
+      <img src="${UNSPLASH}/${c.img}" loading="lazy" alt="${c.name}"/>
+      <div class="cuisine-card-overlay">
+        <div class="cuisine-flag">${c.flag}</div>
+        <div class="cuisine-name">${c.name}</div>
+        <div class="cuisine-count">${c.count} dishes</div>
+      </div>
+      <div class="cuisine-hover"><span class="cuisine-hover-text">Explore ${c.name} →</span></div>
+    </div>`).join('');
+}
+
+function filterByCuisine(id) {
+  const cuisine = CUISINES.find(c=>c.id===id);
+  if (!cuisine) return;
+  scrollTo('courses');
+  setTimeout(() => {
+    currentCourse = 'all';
+    buildCourseTabs();
+    buildDishes(null, cuisine.name);
+  }, 400);
+}
+
+// ===========================
+// COURSE TABS
+// ===========================
+function buildCourseTabs() {
+  const tabs = document.getElementById('courseTabs');
+  tabs.innerHTML = COURSES.map(c => `
+    <button class="course-tab ${currentCourse===c.id?'active':''}" onclick="setCourse('${c.id}')">
+      ${c.icon} ${c.label}
+    </button>`).join('');
+}
+
+function setCourse(id) {
+  currentCourse = id;
+  buildCourseTabs();
+  buildDishes(id);
+}
+
+// ===========================
+// DISHES GRID
+// ===========================
+function buildDishes(course, cuisineFilter) {
+  let dishes = [...getActiveDishes()];
+  if (course && course !== 'all') dishes = dishes.filter(d => d.course === course);
+  if (cuisineFilter) dishes = dishes.filter(d => d.cuisine === cuisineFilter);
+  const grid = document.getElementById('dishesGrid');
+  if (!dishes.length) { grid.innerHTML = `<p style="color:var(--text3);grid-column:1/-1;padding:40px 0;">No dishes found. Try another filter.</p>`; return; }
+  grid.innerHTML = dishes.map((d,i) => `
+    <div class="dish-card" onclick="openDish(${d.id})">
+      ${i===0?'<div class="new-badge">Trending</div>':''}
+      <img class="dish-card-img" src="${dishImg(d.img)}" loading="lazy" alt="${d.name}"/>
+      <div class="dish-card-body">
+        <div class="dish-meta">
+          <span class="tag tag-cuisine">${d.cuisine}</span>
+          <span class="tag tag-course">${d.course}</span>
+          ${d.veg?'<span class="tag tag-veg">🌱 Veg</span>':''}
+          <span class="tag tag-time">⏱ ${d.time}</span>
+        </div>
+        <div class="dish-name">${d.name}</div>
+        <div class="dish-desc">${d.desc}</div>
+        <div class="dish-card-footer">
+          <div class="dish-rating">
+            <span class="stars">${'★'.repeat(Math.floor(d.rating))}${'☆'.repeat(5-Math.floor(d.rating))}</span>
+            ${d.rating}
+          </div>
+          <div class="dish-actions">
+            <button class="icon-btn ${likedDishes.has(d.id)?'liked':''}" onclick="event.stopPropagation();toggleLike(${d.id},this)" title="Save">♡</button>
+            <button class="icon-btn" onclick="event.stopPropagation();openDish(${d.id})" title="View Recipe">→</button>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleLike(id, btn) {
+  if (likedDishes.has(id)) { likedDishes.delete(id); btn.classList.remove('liked'); btn.innerHTML='♡'; }
+  else { likedDishes.add(id); btn.classList.add('liked'); btn.innerHTML='♥'; }
+}
+
+// ===========================
+// FEATURED
+// ===========================
+function buildFeatured() {
+  const d = getActiveDishes();
+  if (!d || d.length < 2) return;
+  document.getElementById('featuredGrid').innerHTML = `
+    <div class="featured-main" onclick="openDish(${d[0].id})">
+      <img src="${dishImg(d[0].img)}" loading="lazy" alt="${d[0].name}"/>
+      <div class="featured-overlay">
+        <div class="featured-label">${d[0].cuisine} · ${d[0].course}</div>
+        <div class="featured-title">${d[0].name}</div>
+        <div class="featured-meta">
+          <span>⏱ ${d[0].time}</span>
+          <span>★ ${d[0].rating}</span>
+          <span>${d[0].difficulty}</span>
+        </div>
+      </div>
+    </div>
+    <div class="featured-sub-grid">
+      ${[d[3],d[6]].map(dish=>`
+      <div class="featured-sub" onclick="openDish(${dish.id})">
+        <img src="${dishImg(dish.img)}" loading="lazy" alt="${dish.name}"/>
+        <div class="featured-sub-overlay">
+          <div class="featured-label">${dish.cuisine}</div>
+          <div class="featured-sub-title">${dish.name}</div>
+          <div style="font-size:0.75rem;color:rgba(255,255,255,0.6);margin-top:4px;">⏱ ${dish.time} · ★ ${dish.rating}</div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+}
+
+// ===========================
+// RECIPE MODAL — FULL FEATURED
+// ===========================
+let currentDishId = null;
+let currentDishData = null;
+let currentServings = 4;
+let baseServings = 4;
+
+function switchTab(tab) {
+  document.querySelectorAll('.recipe-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.recipe-tab-panel').forEach(p=>p.classList.remove('active'));
+  const btn = document.getElementById('tab-'+tab);
+  const panel = document.getElementById('panel-'+tab);
+  if(btn) btn.classList.add('active');
+  if(panel) panel.classList.add('active');
+  // Scroll tab scroller back to top
+  const scroller = document.getElementById('tabScroller');
+  if(scroller) scroller.scrollTop = 0;
+}
+
+function goToSteps() {
+  switchTab('steps');
+  // On mobile, scroll right panel into view
+  const right = document.querySelector('.recipe-right');
+  if(right) right.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// ===========================
+// SERVING SIZE SCALER
+// ===========================
+function setServings(n) {
+  currentServings = Math.max(1, Math.min(20, n));
+  document.getElementById('serving-num').textContent = currentServings;
+  // Update preset buttons
+  document.querySelectorAll('.serving-preset').forEach(btn => {
+    const btnVal = parseInt(btn.textContent);
+    btn.classList.toggle('active', btnVal === currentServings);
+  });
+  if (currentDishData) renderIngredients(currentDishData);
+}
+
+function changeServings(delta) {
+  setServings(currentServings + delta);
+}
+
+// Parse a quantity string like "2", "1/2", "½", "3-4", "2.5" → float
+function parseQty(qtyStr) {
+  if (!qtyStr) return null;
+  const s = String(qtyStr).trim()
+    .replace('½','0.5').replace('¼','0.25').replace('¾','0.75')
+    .replace('⅓','0.333').replace('⅔','0.667').replace('⅛','0.125');
+  // Range like "3-4" or "3–4" → use midpoint
+  const range = s.match(/^([\d.]+)\s*[-–]\s*([\d.]+)$/);
+  if (range) return (parseFloat(range[1]) + parseFloat(range[2])) / 2;
+  // Fraction like "1/2" or "3/4"
+  const frac = s.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (frac) return parseInt(frac[1]) / parseInt(frac[2]);
+  // Mixed like "1 1/2"
+  const mixed = s.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+// Format a float back to a nice readable fraction/number
+function formatQty(n) {
+  if (n === null || n === undefined) return '';
+  // Round to 2 decimal places
+  n = Math.round(n * 100) / 100;
+  if (n === 0) return '—';
+  // Common fractions
+  const fracs = [
+    [1,8,'⅛'],[1,4,'¼'],[1,3,'⅓'],[3,8,'⅜'],[1,2,'½'],[5,8,'⅝'],[2,3,'⅔'],[3,4,'¾'],[7,8,'⅞']
+  ];
+  const whole = Math.floor(n);
+  const dec = Math.round((n - whole) * 1000) / 1000;
+  if (dec === 0) return String(whole);
+  // Try to match common fractions
+  for (const [num, den, sym] of fracs) {
+    if (Math.abs(dec - num/den) < 0.04) {
+      return whole > 0 ? `${whole} ${sym}` : sym;
+    }
+  }
+  // For large numbers just round to 1 decimal
+  if (n >= 10) return String(Math.round(n));
+  return n.toFixed(1).replace(/\.0$/, '');
+}
+
+function scaleQty(qtyStr, baseS, currentS) {
+  const base = parseQty(qtyStr);
+  if (base === null) return qtyStr; // non-numeric, return as-is
+  const scaled = base * (currentS / baseS);
+  return formatQty(scaled);
+}
+
+function renderIngredients(d) {
+  document.getElementById('ingPanelTitle').textContent =
+    `${d.ingredients.length} ingredients · ${currentServings} serving${currentServings > 1 ? 's' : ''}`;
+
+  document.getElementById('modalIngredients').innerHTML = d.ingredients.map(ing => {
+    const ingName = typeof ing === 'object' ? ing.name : ing;
+    const ingQtyRaw = typeof ing === 'object' ? ing.qty : '';
+    const ingUnit = typeof ing === 'object' ? ing.unit : '';
+    const ingImgRaw = typeof ing === 'object' && ing.img ? ing.img : null;
+
+    // Get correct image using our verified map
+    const imgSrc = `${UNSPLASH}/${getIngImage(ingName, ingImgRaw)}`;
+
+    // Scale the quantity
+    const scaledQty = ingQtyRaw ? scaleQty(ingQtyRaw, baseServings, currentServings) : '';
+
+    // Check if substitute exists
+    const subKey = ingName.toLowerCase();
+    let subText = null;
+    for (const [k, v] of Object.entries(SUBSTITUTES)) {
+      if (subKey.includes(k) || k.includes(subKey)) { subText = v; break; }
+    }
+
+    return `<div class="ing-card" onclick="openIngredient('${ingName.replace(/'/g,"\\'")}')">
+      <div class="ing-card-img-wrap">
+        <img src="${imgSrc}" loading="lazy" alt="${ingName}"
+             onerror="this.src='${UNSPLASH}/photo-1546069901-ba9599a7e63c?w=300&q=80'"/>
+      </div>
+      <div class="ing-card-info">
+        <div class="ing-card-name">${ingName}</div>
+        ${scaledQty ? `<div class="ing-card-qty">${scaledQty}</div>` : ''}
+        ${ingUnit ? `<div class="ing-card-unit">${ingUnit}</div>` : ''}
+        ${subText ? `<div class="ing-card-sub show">↔ Sub: ${subText}</div>` : ''}
+        <div class="ing-card-link">→ See all dishes</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openDish(id) {
+  const d = getActiveDishes().find(x=>x.id===id);
+  if (!d) return;
+  currentDishId = id;
+  currentDishData = d;
+  baseServings = d.servings || 4;
+  currentServings = baseServings;
+  switchTab('ingredients');
+
+  // Reset serving UI
+  document.getElementById('serving-num').textContent = currentServings;
+  document.querySelectorAll('.serving-preset').forEach(btn => {
+    const btnVal = parseInt(btn.textContent);
+    btn.classList.toggle('active', btnVal === currentServings);
+  });
+
+  // Hero image
+  document.getElementById('modalImg').src = dishImg(d.img);
+  document.getElementById('modalImg').alt = d.name;
+
+  // Title ON the hero image
+  document.getElementById('modalTitle').textContent = d.name;
+
+  // Tags on hero image
+  document.getElementById('modalMetaTags').innerHTML = `
+    <span class="tag tag-cuisine">${d.cuisine}</span>
+    <span class="tag tag-course">${d.course}</span>
+    ${d.veg ? '<span class="tag tag-veg">🌱 Veg</span>' : '<span class="tag tag-time">🍖 Non-Veg</span>'}
+    <span class="tag tag-time">⏱ ${d.time}</span>`;
+
+  // Desc
+  document.getElementById('modalDesc').textContent = d.desc;
+
+  // Rating
+  const stars = '★'.repeat(Math.floor(d.rating)) + '☆'.repeat(5 - Math.floor(d.rating));
+  document.getElementById('modalStars').textContent = stars;
+  document.getElementById('modalRating').textContent = d.rating;
+  document.getElementById('modalRatingCount').textContent = `(${(d.reviews||0).toLocaleString()} reviews)`;
+
+  // Quick info grid
+  document.getElementById('modalQuickInfo').innerHTML = `
+    <div class="rqi-item"><span class="rqi-label">Total Time</span><span class="rqi-val accent">${d.time}</span></div>
+    <div class="rqi-item"><span class="rqi-label">Difficulty</span><span class="rqi-val">${d.difficulty}</span></div>
+    <div class="rqi-item"><span class="rqi-label">Prep Time</span><span class="rqi-val">${d.prepTime||'—'}</span></div>
+    <div class="rqi-item"><span class="rqi-label">Cook Time</span><span class="rqi-val">${d.cookTime||'—'}</span></div>
+    <div class="rqi-item"><span class="rqi-label">Base Serves</span><span class="rqi-val">${d.servings||4}</span></div>
+    <div class="rqi-item"><span class="rqi-label">Calories</span><span class="rqi-val accent">${d.nutrition?.calories||'—'}</span></div>`;
+
+  // Nutrition
+  const nut = d.nutrition || {};
+  const nutritionRows = [
+    {name:'Protein', val:nut.protein||'—', pct:70, color:'#4a9e7f'},
+    {name:'Carbs', val:nut.carbs||'—', pct:55, color:'#e8a838'},
+    {name:'Fat', val:nut.fat||'—', pct:40, color:'#c4502a'},
+    {name:'Fiber', val:nut.fiber||'—', pct:25, color:'#5ba85b'},
+  ];
+  document.getElementById('modalNutrition').innerHTML = nutritionRows.map(r=>`
+    <div class="nutrition-row">
+      <span class="nutrition-name">${r.name}</span>
+      <div class="nutrition-fill-wrap"><div class="nutrition-fill" style="width:${r.pct}%;background:${r.color};"></div></div>
+      <span class="nutrition-val">${r.val}</span>
+    </div>`).join('');
+
+  // Like button
+  const likeBtn = document.getElementById('modalLikeBtn');
+  if (likeBtn) likeBtn.textContent = likedDishes.has(id) ? '♥ Saved' : '♡ Save';
+
+  // Ingredients tab (with current serving scale)
+  renderIngredients(d);
+
+  // STEPS tab
+  document.getElementById('modalSteps').innerHTML = (d.steps||[]).map((s,i)=>{
+    const step = typeof s === 'object' ? s : {title:`Step ${i+1}`, instruction:s};
+    return `<div class="recipe-step-card" id="step-${i}">
+      ${step.img ? `<div class="step-img-wrap">
+        <img src="${UNSPLASH}/${step.img}" loading="lazy" alt="${step.title}"
+             onerror="this.parentElement.style.display='none'"/>
+        <div class="step-img-gradient"></div>
+      </div>` : ''}
+      <div class="step-body">
+        <div class="step-header">
+          <div class="step-badge">${i+1}</div>
+          <div class="step-title-text">${step.title||`Step ${i+1}`}</div>
+          ${step.timer ? `<div class="step-timer-pill" onclick="startTimer(${i},'${step.timer}',this)">⏱ ${step.timer}</div>` : ''}
+        </div>
+        <div class="step-instruction">${step.instruction||step}</div>
+        ${step.tip ? `<div class="step-tip"><strong>💡 Chef's Tip:</strong> ${step.tip}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // TIPS tab
+  document.getElementById('modalTips').innerHTML = (d.tips||[]).map(t=>`
+    <div class="tip-card">
+      <div class="tip-icon" style="background:rgba(232,168,56,0.1);">${t.icon}</div>
+      <div><div class="tip-title">${t.title}</div><div class="tip-text">${t.text}</div></div>
+    </div>`).join('') || '<p style="color:var(--text3);padding:20px 0;">Tips coming soon!</p>';
+
+  document.getElementById('dishModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function toggleModalLike() {
+  if(!currentDishId) return;
+  const btn = document.getElementById('modalLikeBtn');
+  if(likedDishes.has(currentDishId)) {
+    likedDishes.delete(currentDishId);
+    btn.textContent = '♡ Save';
+  } else {
+    likedDishes.add(currentDishId);
+    btn.textContent = '♥ Saved';
+  }
+}
+
+// Cooking timers
+const activeTimers = {};
+function startTimer(stepIdx, timerStr, el) {
+  if(activeTimers[stepIdx]) {
+    clearInterval(activeTimers[stepIdx].interval);
+    delete activeTimers[stepIdx];
+    el.classList.remove('running');
+    el.textContent = `⏱ ${timerStr}`;
+    return;
+  }
+  // Parse timer: "30 min", "2 min", "480 min", "15 min"
+  const match = timerStr.match(/(\d+)\s*(min|sec|hr)/i);
+  if(!match) return;
+  let seconds = parseInt(match[1]);
+  if(match[2].toLowerCase() === 'min') seconds *= 60;
+  if(match[2].toLowerCase() === 'hr') seconds *= 3600;
+
+  el.classList.add('running');
+  activeTimers[stepIdx] = {
+    interval: setInterval(()=>{
+      seconds--;
+      const m = Math.floor(seconds/60);
+      const s = seconds%60;
+      el.textContent = `⏱ ${m}:${s.toString().padStart(2,'0')}`;
+      if(seconds <= 0) {
+        clearInterval(activeTimers[stepIdx].interval);
+        delete activeTimers[stepIdx];
+        el.classList.remove('running');
+        el.textContent = '✅ Done!';
+        el.closest('.recipe-step-card').classList.add('active-step');
+        // Browser notification
+        if('Notification' in window && Notification.permission==='granted') {
+          new Notification('FlavorWorld Timer', {body:`Step ${stepIdx+1} complete!`});
+        }
+      }
+    }, 1000)
+  };
+}
+
+function closeModalDirect() {
+  document.getElementById('dishModal').classList.remove('open');
+  document.body.style.overflow = '';
+  // Clear all timers
+  Object.keys(activeTimers).forEach(k=>{clearInterval(activeTimers[k].interval); delete activeTimers[k];});
+}
+
+// Close on backdrop click
+document.getElementById('dishModal').addEventListener('click', e => {
+  if(e.target === document.getElementById('dishModal')) closeModalDirect();
+});
+
+// Close modal on close button click (delegation)
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-close')) {
+    document.querySelectorAll('.modal-backdrop').forEach(m=>m.classList.remove('open'));
+    document.body.style.overflow = '';
+  }
+});
+
+// ===========================
+// INGREDIENTS
+// ===========================
+function buildIngredients(filter) {
+  let ings = filter ? INGREDIENTS.filter(i=>i.name.toLowerCase().includes(filter.toLowerCase())) : INGREDIENTS;
+  document.getElementById('ingredientsGrid').innerHTML = ings.map(i=>`
+    <div class="ingredient-chip" onclick="openIngredient('${i.name}')">
+      <div class="chip-glow"></div>
+      <img src="${UNSPLASH}/${i.img}" loading="lazy" alt="${i.name}"/>
+      <div class="ingredient-chip-name">${i.name}</div>
+      <div class="ingredient-chip-count">${i.count} dishes</div>
+    </div>`).join('');
+}
+
+function filterIngredients(val) { buildIngredients(val); }
+
+function openIngredient(name) {
+  const ingData = INGREDIENTS.find(i=>i.name.toLowerCase()===name.toLowerCase());
+  const relatedDishes = getActiveDishes().filter(d=>d.ingredients.some(ing => {
+    const ingName = typeof ing === 'object' ? ing.name : ing;
+    return ingName.toLowerCase()===name.toLowerCase();
+  }));
+
+  const heroImg = ingData ? `${UNSPLASH}/${ingData.img.replace('w=200','w=800')}` : `${UNSPLASH}/photo-1576045057995-568f588f82fb?w=800&q=80`;
+  document.getElementById('ingModalImg').src = heroImg;
+  document.getElementById('ingModalName').textContent = name;
+  document.getElementById('ingModalCount').textContent = `Used in ${relatedDishes.length || (ingData?ingData.count:0)} dishes worldwide`;
+  document.getElementById('ingModalDesc').textContent = ingData?.desc || `${name} is a versatile ingredient used in cuisines across the world, lending its distinctive flavour to a wide range of dishes.`;
+
+  // Common measures from all dishes that use this ingredient
+  const measures = new Set();
+  DISHES.forEach(d => {
+    d.ingredients.forEach(ing => {
+      const ingName = typeof ing === 'object' ? ing.name : ing;
+      if(ingName.toLowerCase() === name.toLowerCase() && ing.qty) {
+        measures.add(`${ing.qty}${ing.unit ? ' ' + ing.unit : ''}`);
+      }
+    });
+  });
+  document.getElementById('ingModalMeasures').innerHTML = [...measures].slice(0,8).map(m=>`
+    <span style="background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:0.8rem;color:var(--text2);">${m}</span>`).join('') || '<span style="color:var(--text3);font-size:0.85rem;">No measurements recorded</span>';
+
+  // Dishes grid
+  document.getElementById('ingModalDishes').innerHTML = relatedDishes.length ?
+    relatedDishes.map(d=>`
+      <div class="dish-card" onclick="closeIngredientModal();setTimeout(()=>openDish(${d.id}),300)">
+        <img class="dish-card-img" src="${dishImg(d.img)}" loading="lazy" alt="${d.name}" style="height:150px;"/>
+        <div class="dish-card-body">
+          <div class="dish-meta"><span class="tag tag-cuisine">${d.cuisine}</span><span class="tag tag-time">⏱ ${d.time}</span></div>
+          <div class="dish-name" style="font-size:1rem;">${d.name}</div>
+          <div class="dish-desc" style="font-size:0.78rem;-webkit-line-clamp:2;">${d.desc}</div>
+        </div>
+      </div>`).join('')
+    : `<p style="color:var(--text3);grid-column:1/-1;padding:20px 0;">${name} is used in many more dishes in our full database!</p>`;
+
+  document.getElementById('ingredientModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeIngredientModal(e) {
+  if(e && e.target !== document.getElementById('ingredientModal')) return;
+  document.getElementById('ingredientModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.getElementById('ingredientModal').addEventListener('click', e => {
+  if(e.target === document.getElementById('ingredientModal')) {
+    document.getElementById('ingredientModal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+});
+
+// ===========================
+// BEVERAGES
+// ===========================
+function buildBeverages() {
+  document.getElementById('beveragesGrid').innerHTML = BEVERAGES.map(b=>`
+    <div class="bev-card" onclick="alert('${b.name}: ${b.desc}')">
+      <img class="bev-card-img" src="${UNSPLASH}/${b.img}" loading="lazy" alt="${b.name}"/>
+      <div class="bev-card-body">
+        <div class="bev-type">${b.type} · ${b.origin}</div>
+        <div class="bev-name">${b.name}</div>
+        <div class="bev-detail">${b.desc}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ===========================
+// AI CHEF
+// ===========================
+function addAiIngredient() {
+  const inp = document.getElementById('aiIngredientInput');
+  const val = inp.value.trim();
+  if (!val || aiIngredients.includes(val)) return;
+  aiIngredients.push(val);
+  inp.value = '';
+  renderAiTags();
+}
+
+function renderAiTags() {
+  document.getElementById('aiTags').innerHTML = aiIngredients.map(t=>`
+    <div class="ai-tag">${t}<span class="ai-tag-remove" onclick="removeAiIng('${t}')">✕</span></div>`).join('');
+}
+
+function removeAiIng(t) {
+  aiIngredients = aiIngredients.filter(x=>x!==t);
+  renderAiTags();
+}
+
+function findRecipes() {
+  if (!aiIngredients.length) { alert('Please add at least one ingredient!'); return; }
+  const placeholder = document.getElementById('aiPlaceholder');
+  const result = document.getElementById('aiResult');
+  placeholder.style.display = 'none';
+  result.classList.add('show');
+
+  // Smart matching
+  const matched = DISHES.map(d => {
+    const matches = d.ingredients.filter(ing => {
+      const ingName = typeof ing === 'object' ? ing.name : ing;
+      return aiIngredients.some(ai => ingName.toLowerCase().includes(ai.toLowerCase()));
+    });
+    return { ...d, score: matches.length, matching: matches.map(m => typeof m === 'object' ? m.name : m) };
+  }).filter(d=>d.score>0).sort((a,b)=>b.score-a.score).slice(0,5);
+
+  if (!matched.length) {
+    document.getElementById('aiResultList').innerHTML = `<li>No direct matches — try common ingredients like tomato, garlic, or chicken.</li>`;
+    return;
+  }
+  document.getElementById('aiResultList').innerHTML = matched.map(d=>`
+    <li onclick="openDish(${d.id})" style="cursor:pointer;">
+      <div>
+        <strong style="color:var(--text)">${d.name}</strong>
+        <span style="display:block;font-size:0.75rem;">${d.matching.join(', ')} matched · ${d.time}</span>
+      </div>
+    </li>`).join('');
+}
+
+// ===========================
+// LANGUAGE
+// ===========================
+function toggleLang() {
+  document.getElementById('langDropdown').classList.toggle('open');
+}
+function closeLang() { document.getElementById('langDropdown').classList.remove('open'); }
+document.addEventListener('click', e => {
+  if (!e.target.closest('#langDropdown') && !e.target.closest('#langToggle')) closeLang();
+});
+
+function setLang(lang) {
+  currentLang = lang;
+  closeLang();
+  const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
+  const flags = {en:'🇬🇧',hi:'🇮🇳',es:'🇪🇸',fr:'🇫🇷',ar:'🇸🇦',ja:'🇯🇵',zh:'🇨🇳',de:'🇩🇪',pt:'🇧🇷',ko:'🇰🇷'};
+  const names = {en:'EN',hi:'HI',es:'ES',fr:'FR',ar:'AR',ja:'JA',zh:'ZH',de:'DE',pt:'PT',ko:'KO'};
+  document.getElementById('currentLangFlag').textContent = flags[lang]||'🌐';
+  document.getElementById('currentLangName').textContent = names[lang]||'EN';
+  document.getElementById('heroTitle').innerHTML = t.heroTitle;
+  document.getElementById('heroSub').textContent = t.heroSub;
+  document.getElementById('heroCta1').textContent = t.heroCta1;
+  document.getElementById('heroCta2').textContent = t.heroCta2;
+  document.getElementById('statDishes').textContent = t.statDishes;
+  document.getElementById('statCuisines').textContent = t.statCuisines;
+  document.getElementById('statIngredients').textContent = t.statIngredients;
+  document.getElementById('cuisineLabel').textContent = t.cuisineLabel;
+  document.getElementById('cuisineTitle').innerHTML = t.cuisineTitle;
+  document.getElementById('cuisineSub').textContent = t.cuisineSub;
+  document.getElementById('courseTitle').innerHTML = t.courseTitle;
+  document.getElementById('ingTitle').innerHTML = t.ingTitle;
+  document.getElementById('ingSub').textContent = t.ingSub;
+  document.getElementById('bevTitle').innerHTML = t.bevTitle;
+  document.getElementById('aiDesc').textContent = t.aiDesc;
+  document.getElementById('aiPlaceholderText').textContent = t.aiPlaceholderText;
+  // RTL
+  document.body.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  // Activate option
+  document.querySelectorAll('.lang-option').forEach(o=>o.classList.remove('active'));
+  document.querySelectorAll('.lang-option').forEach(o=>{ if(o.textContent.toLowerCase().includes(lang)) o.classList.add('active'); });
+}
+
+// ===========================
+// SEARCH
+// ===========================
+function openSearch() {
+  document.getElementById('searchModal').classList.add('open');
+  document.getElementById('searchInput').focus();
+}
+function closeSearch() { document.getElementById('searchModal').classList.remove('open'); }
+
+function handleSearch(val) {
+  const results = document.getElementById('searchResults');
+  if (!val.trim()) { results.innerHTML=''; return; }
+  const q = val.toLowerCase();
+  const dishMatches = getActiveDishes().filter(d=>d.name.toLowerCase().includes(q)||d.cuisine.toLowerCase().includes(q)||d.desc.toLowerCase().includes(q));
+  const ingMatches = INGREDIENTS.filter(i=>i.name.toLowerCase().includes(q));
+  let html = '';
+  dishMatches.slice(0,4).forEach(d => {
+    html += `<div class="search-result-item" onclick="closeSearch();openDish(${d.id})">
+      <img src="${dishImg(d.img)}" alt="${d.name}"/>
+      <div><div class="search-result-name">${d.name}</div><div class="search-result-meta">${d.cuisine} · ${d.course} · ${d.time}</div></div>
+    </div>`;
+  });
+  ingMatches.slice(0,3).forEach(i => {
+    html += `<div class="search-result-item" onclick="closeSearch();scrollTo('ingredients');setTimeout(()=>openIngredient('${i.name}'),400)">
+      <img src="${UNSPLASH}/${i.img}" style="border-radius:50%;" alt="${i.name}"/>
+      <div><div class="search-result-name">${i.name}</div><div class="search-result-meta">Ingredient · ${i.count} dishes</div></div>
+    </div>`;
+  });
+  if (!html) html = `<div class="search-result-item" style="cursor:default;"><span style="color:var(--text3)">No results for "${val}"</span></div>`;
+  results.innerHTML = html;
+}
+
+// ===========================
+// UTILS
+// ===========================
+function scrollToTop() { window.scrollTo({top:0,behavior:'smooth'}); }
+function scrollTo(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// Nav shadow on scroll
+window.addEventListener('scroll', () => {
+  const nav = document.getElementById('navbar');
+  nav.style.boxShadow = window.scrollY > 40 ? '0 4px 30px rgba(0,0,0,0.4)' : 'none';
+});
+</script>
+</body>
+</html>
