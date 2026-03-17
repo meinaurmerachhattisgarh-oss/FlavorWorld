@@ -24,13 +24,12 @@ import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc,
 // PASTE YOUR FIREBASE CONFIG BELOW ↓
 // ──────────────────────────────────────────────
 const firebaseConfig = {
-  apiKey: "AIzaSyCWt7rja5yKr7Ffwc7YhFdWJNoUMj54o-M",
-  authDomain: "falvorworld.firebaseapp.com",
-  databaseURL: "https://falvorworld-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "falvorworld",
-  storageBucket: "falvorworld.firebasestorage.app",
-  messagingSenderId: "120692419636",
-  appId: "1:120692419636:web:70f68ecdb7b7e66a09ee61"
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId:         "YOUR_PROJECT_ID",
+  storageBucket:     "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId:             "YOUR_APP_ID"
 };
 // ──────────────────────────────────────────────
 
@@ -1551,8 +1550,49 @@ tr:hover td{background:rgba(255,255,255,0.015)}
 
       <!-- ══════ API KEYS ══════ -->
       <div class="page" id="page-apikeys">
+        <!-- Firebase Status Banner -->
+        <div id="firebase-status-banner" style="background:var(--red-dim);border:1px solid rgba(231,76,60,0.3);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div style="font-weight:700;font-size:0.88rem;color:var(--red);">🔥 Firebase — Checking connection…</div>
+            <div style="font-size:0.75rem;color:var(--text2);margin-top:2px;" id="fb-banner-msg">Testing Firebase connection…</div>
+          </div>
+          <button class="btn btn-sm" onclick="testFirebaseConnection()">🔄 Test Connection</button>
+        </div>
+        <!-- Firestore Rules Fix -->
+        <div class="card" style="margin-bottom:16px;border-color:rgba(240,165,0,0.3);">
+          <div class="card-header" style="background:rgba(240,165,0,0.05);">
+            <div><div class="card-title">⚠️ Firestore Security Rules — Fix Permission Errors</div><div class="card-sub">If push fails with "Permission denied", paste these rules in Firebase Console</div></div>
+            <a href="https://console.firebase.google.com" target="_blank" class="btn btn-primary btn-sm">Open Firebase Console →</a>
+          </div>
+          <div class="card-body">
+            <div style="font-size:0.78rem;color:var(--text2);margin-bottom:10px;">
+              Firebase Console → Firestore Database → <strong style="color:var(--text);">Rules</strong> tab → Replace all text with this → <strong style="color:var(--gold);">Publish</strong>
+            </div>
+            <div style="background:var(--bg);border:1px solid var(--border2);border-radius:var(--r-sm);padding:14px;font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--green);line-height:2;position:relative;">
+              <button onclick="copyRules()" class="btn btn-sm" style="position:absolute;top:8px;right:8px;font-size:0.68rem;">📋 Copy</button>
+              <div id="rules-text">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /dishes/{dishId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /logs/{logId} {
+      allow read, write: if request.auth != null;
+    }
+    match /admins/{userId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}</div>
+            </div>
+            <div style="margin-top:10px;font-size:0.75rem;color:var(--text3);">
+              💡 <strong style="color:var(--text2);">Test mode expired?</strong> Firebase test mode lasts only 30 days. After that you MUST update rules manually.
+            </div>
+          </div>
+        </div>
         <div style="background:var(--green-dim);border:1px solid rgba(46,204,113,0.2);border-radius:var(--r);padding:12px 16px;margin-bottom:18px;font-size:0.82rem;color:var(--green);">
-          ✅ TheMealDB is completely free — 300+ dishes, no API key needed. Add optional keys below for more sources.
+          ✅ TheMealDB is completely free — 300+ dishes, no API key needed.
         </div>
         <div class="col-2">
           <div class="card">
@@ -1594,13 +1634,13 @@ tr:hover td{background:rgba(255,255,255,0.015)}
             </div>
           </div>
           <div class="card">
-            <div class="card-header"><div class="card-title">📖 How to Import</div></div>
-            <div class="card-body" style="font-size:0.82rem;color:var(--text2);line-height:2;">
-              <div><strong style="color:var(--text);">Step 1:</strong> Go to Import → TheMealDB is free, start there</div>
-              <div><strong style="color:var(--text);">Step 2:</strong> Search by dish name, cuisine, or category</div>
-              <div><strong style="color:var(--text);">Step 3:</strong> Select dishes, click Import Selected</div>
-              <div><strong style="color:var(--text);">Step 4:</strong> Data auto-maps: name, image, ingredients + quantities, steps, cuisine</div>
-              <div><strong style="color:var(--text);">Step 5:</strong> Export JSON → paste into main FlavorWorld app</div>
+            <div class="card-header"><div class="card-title">📖 Steps to get dishes on site</div></div>
+            <div class="card-body" style="font-size:0.82rem;color:var(--text2);line-height:2.2;">
+              <div>1️⃣ <strong style="color:var(--text);">API Import</strong> → Import All 300+ Dishes button</div>
+              <div>2️⃣ Dishes auto-save to <strong style="color:var(--text);">Firebase Firestore</strong></div>
+              <div>3️⃣ Main site <strong style="color:var(--text);">reads from Firestore</strong> automatically</div>
+              <div>4️⃣ If site still shows old data → <strong style="color:var(--gold);">hard refresh (Ctrl+Shift+R)</strong></div>
+              <div>5️⃣ Status light shows <span style="color:var(--green);">● Synced</span> when everything is live</div>
             </div>
           </div>
         </div>
@@ -1868,11 +1908,12 @@ async function checkAllStatuses() {
 }
 
 // ══════════════════════════════════════
-// PUSH TO APP — writes all dishes to Firestore
+// PUSH TO APP — batch write all to Firestore
 // ══════════════════════════════════════
 async function pushToApp() {
   if(!useFirebase()) {
-    toast('Firebase not configured. Add your config first.', 'err');
+    toast('Firebase not configured. Add your Firebase config first.', 'err');
+    nav('apikeys');
     return;
   }
   if(!DB.dishes.length) {
@@ -1881,31 +1922,35 @@ async function pushToApp() {
   }
   const btn = document.getElementById('pushAppBtn');
   btn.disabled = true;
-  btn.textContent = `⏳ Pushing ${DB.dishes.length} dishes…`;
-  showLoadingOverlay(`Pushing ${DB.dishes.length} dishes to live app…`);
+  btn.innerHTML = `⏳ Pushing…`;
+
   try {
-    // Batch write all dishes to Firestore
-    let done = 0;
-    for(let i = 0; i < DB.dishes.length; i += 20) {
-      const batch = DB.dishes.slice(i, i+20);
-      await Promise.all(batch.map(d => window.fs.setDish(d)));
-      done += batch.length;
-      document.getElementById('loadMsg').textContent =
-        `Pushing dishes… ${done}/${DB.dishes.length}`;
-    }
+    // Use writeBatch — MUCH faster, all dishes in one operation
+    showLoadingOverlay(`Pushing ${DB.dishes.length} dishes to Firebase…`);
+    await window.fs.setAllDishes(DB.dishes);
     hideLoadingOverlay();
     updateStatusLights('app','green');
     document.getElementById('st-app-txt').textContent = `Synced (${DB.dishes.length})`;
     addLog('ok', `Pushed ${DB.dishes.length} dishes to live app`);
-    toast(`✅ ${DB.dishes.length} dishes pushed to live app!`, 'ok');
+    toast(`✅ ${DB.dishes.length} dishes live on site now!`, 'ok');
   } catch(e) {
     hideLoadingOverlay();
     updateStatusLights('app','red');
-    toast('Push failed: ' + e.message, 'err');
-    addLog('err', 'Push to app failed: ' + e.message);
+    // Show helpful error based on error type
+    let hint = e.message;
+    if (e.message.includes('permission') || e.message.includes('PERMISSION_DENIED')) {
+      hint = 'Permission denied — update Firestore Rules to allow write';
+    } else if (e.message.includes('quota') || e.message.includes('RESOURCE_EXHAUSTED')) {
+      hint = 'Firebase quota exceeded — wait 1 min and try again';
+    } else if (e.message.includes('network') || e.message.includes('unavailable')) {
+      hint = 'Network error — check your internet connection';
+    }
+    toast(`Push failed: ${hint}`, 'err');
+    addLog('err', `Push failed: ${hint}`);
+    console.error('pushToApp error:', e);
   }
   btn.disabled = false;
-  btn.textContent = '🚀 Push All to Live App';
+  btn.innerHTML = '🚀 Push All to Live App';
 }
 
 // ══════════════════════════════════════
@@ -2093,9 +2138,16 @@ async function saveDishToFS(dish) {
 async function saveDishesToFS(dishes) {
   saveDB();
   if (!useFirebase()) return;
-  // Save in parallel batches of 20
-  for (let i = 0; i < dishes.length; i += 20) {
-    await Promise.allSettled(dishes.slice(i, i+20).map(d => window.fs.setDish(d)));
+  try {
+    // Use Firestore writeBatch — max 500 per batch, much faster
+    await window.fs.setAllDishes(dishes);
+  } catch(e) {
+    console.warn('Batch write failed, trying one-by-one:', e.message);
+    // Fallback: one by one with error tolerance
+    for (const d of dishes) {
+      try { await window.fs.setDish(d); } catch(err) { /* skip */ }
+      await delay(50);
+    }
   }
 }
 
@@ -3138,6 +3190,59 @@ function saveKey(api) {
 }
 function testKey(api){toast(`Testing ${api} connection…`,'info');setTimeout(()=>toast('✓ Connection successful!','ok'),1500);}
 
+function copyRules() {
+  const text = document.getElementById('rules-text')?.innerText ||
+`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /dishes/{dishId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /logs/{logId} {
+      allow read, write: if request.auth != null;
+    }
+    match /admins/{userId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}`;
+  navigator.clipboard.writeText(text).then(()=>toast('✅ Rules copied! Paste in Firebase Console → Firestore → Rules tab → Publish','ok'));
+}
+
+async function testFirebaseConnection() {
+  const banner = document.getElementById('firebase-status-banner');
+  const msg    = document.getElementById('fb-banner-msg');
+  if (!banner || !msg) return;
+  if (!useFirebase()) {
+    if(banner) banner.style.background='var(--red-dim)';
+    if(msg) msg.textContent='Firebase not configured — add your config to the HTML file';
+    return;
+  }
+  if(msg) msg.textContent='Testing…';
+  try {
+    const dishes = await window.fs.getAllDishes();
+    if(banner) {
+      banner.style.background='var(--green-dim)';
+      banner.style.borderColor='rgba(46,204,113,0.2)';
+      banner.querySelector('[style*="font-weight"]').style.color='var(--green)';
+      banner.querySelector('[style*="font-weight"]').textContent='🔥 Firebase — Connected ✓';
+    }
+    if(msg) msg.textContent=`✓ Read OK · ${dishes.length} dishes in Firestore · Auth: ${window._fbAuth?.currentUser?'Logged in':'Login required for write'}`;
+    updateStatusLights('firebase','green');
+    document.getElementById('st-firebase-txt').textContent='Connected ✓';
+  } catch(e) {
+    if(banner) banner.style.background='var(--red-dim)';
+    let hint=e.message;
+    if(e.message.includes('permission')||e.message.includes('PERMISSION')) hint='Permission denied — update Firestore Rules (see below ↓)';
+    else if(e.message.includes('project')||e.message.includes('not-found')) hint='Project not found — check projectId in config';
+    else if(e.message.includes('api-key')||e.message.includes('API_KEY')) hint='Invalid API key — check apiKey in config';
+    if(msg) msg.textContent=hint;
+    updateStatusLights('firebase','red');
+    document.getElementById('st-firebase-txt').textContent='Error ✗';
+  }
+}
+
 // ══════════════════════════════════════
 // EXPORT / IMPORT
 // ══════════════════════════════════════
@@ -3221,6 +3326,7 @@ function nav(id) {
   if(id==='dishes') renderDishes(DB.dishes);
   if(id==='users') renderUsers();
   if(id==='logs') renderFullLogs();
+  if(id==='apikeys') setTimeout(testFirebaseConnection, 300);
 }
 </script>
 </body>
