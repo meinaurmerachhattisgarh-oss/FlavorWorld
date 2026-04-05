@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FlavorWorld — Taste Every Corner of Earth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+JP:wght@400;600&family=Noto+Sans+Arabic:wght@400;600&display=swap" rel="stylesheet"/>
+
+<!-- ══ FIREBASE SDK ══ -->
+<script type="module">
+import { initializeApp }  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, getDocs, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCWt7rja5yKr7Ffwc7YhFdWJNoUMj54o-M",
+  authDomain: "falvorworld.firebaseapp.com",
+  databaseURL: "https://falvorworld-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "falvorworld",
+  storageBucket: "falvorworld.firebasestorage.app",
+  messagingSenderId: "120692419636",
+  appId: "1:120692419636:web:70f68ecdb7b7e66a09ee61",
+  measurementId: "G-C8KZ26LNHX"
+};
+
+try {
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const snap = await getDocs(collection(db, 'dishes'));
+      const fsDishes = snap.docs.map(d => d.data());
+      if (fsDishes.length > 0) {
+        window.FIREBASE_DISHES = fsDishes;
+        if (typeof buildDishes === 'function') buildDishes();
+        if (typeof buildFeatured === 'function') buildFeatured();
+      }
+    } catch(e) {
+      console.warn('Firebase load skipped:', e.message);
+    }
+  });
+
+  onSnapshot(collection(db, 'dishes'), snap => {
+    if (!snap.empty) {
+      window.FIREBASE_DISHES = snap.docs.map(d => d.data());
+      if (typeof buildDishes === 'function') buildDishes();
+      if (typeof buildFeatured === 'function') buildFeatured();
+    }
+  });
+} catch(e) {
+  console.warn('Firebase init skipped:', e.message);
+}
+</script>
+<style>
+:root{
+  --bg:#09090b; --bg2:#0d0d11; --card:#14141a; --card2:#1a1a24;
+  --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.1);
+  --text:#f4f0ec; --text2:#a1a1aa; --text3:#71717a;
+  --gold:#f0a500; --gold2:#d4841a;
+  --r:12px; --r-lg:20px;
+  --t:0.3s cubic-bezier(0.4,0,0.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'DM Sans',sans-serif; line-height:1.6;
+  overflow-x:hidden;
+}
+h1,h2,h3,h4{font-family:'Playfair Display',serif;font-weight:900;line-height:1.1}
+a{text-decoration:none;color:inherit;transition:var(--t)}
+button{cursor:pointer;border:none;background:none;font-family:inherit;transition:var(--t)}
+img{max-width:100%;display:block}
+
+/* ═══ NAV ═══ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  padding:24px 5%;display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(to bottom, rgba(9,9,11,0.8), transparent);
+  backdrop-filter:blur(8px);
+}
+.logo{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:900;letter-spacing:-1px}
+.logo span{color:var(--gold)}
+.nav-links{display:flex;gap:32px;align-items:center}
+.nav-link{font-size:0.9rem;font-weight:500;color:var(--text2);letter-spacing:0.5px}
+.nav-link:hover,.nav-link.active{color:var(--text)}
+.btn-admin{
+  padding:10px 20px;background:var(--gold);color:#000;
+  border-radius:30px;font-weight:700;font-size:0.85rem;
+}
+
+/* ═══ HERO ═══ */
+.hero{
+  height:100vh;position:relative;display:flex;align-items:center;padding:0 5%;
+  overflow:hidden;
+}
+.hero-bg{
+  position:absolute;inset:0;z-index:-1;
+  background:url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=2070') center/cover;
+  filter:brightness(0.4);
+}
+.hero-content{max-width:800px}
+.hero-tag{
+  display:inline-block;padding:6px 16px;background:rgba(240,165,0,0.15);
+  color:var(--gold);border-radius:30px;font-size:0.75rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:2px;margin-bottom:24px;
+}
+.hero h1{font-size:clamp(3rem,8vw,5.5rem);margin-bottom:24px;letter-spacing:-2px}
+.hero p{font-size:1.2rem;color:var(--text2);margin-bottom:40px;max-width:600px}
+.hero-btns{display:flex;gap:16px}
+.btn-hero{
+  padding:16px 32px;border-radius:40px;font-weight:700;font-size:1rem;
+}
+.btn-hero.primary{background:var(--gold);color:#000}
+.btn-hero.outline{border:1px solid var(--border2);color:var(--text)}
+
+/* ═══ SECTIONS ═══ */
+section{padding:100px 5%}
+.section-head{margin-bottom:60px;display:flex;align-items:flex-end;justify-content:space-between}
+.section-title h2{font-size:3rem;margin-bottom:12px}
+.section-title p{color:var(--text2);font-size:1.1rem}
+
+/* ═══ DISH CARDS ═══ */
+.dishes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:32px}
+.dish-card{
+  background:var(--card);border-radius:var(--r-lg);overflow:hidden;
+  border:1px solid var(--border);transition:var(--t);
+  position:relative;
+}
+.dish-card:hover{transform:translateY(-10px);border-color:var(--border2);box-shadow:0 20px 40px rgba(0,0,0,0.4)}
+.dish-img-wrap{height:240px;overflow:hidden;position:relative}
+.dish-img{width:100%;height:100%;object-fit:cover;transition:var(--t)}
+.dish-card:hover .dish-img{transform:scale(1.1)}
+.dish-cat{
+  position:absolute;top:20px;left:20px;padding:4px 12px;
+  background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);
+  border-radius:20px;font-size:0.7rem;font-weight:700;text-transform:uppercase;
+}
+.dish-body{padding:24px}
+.dish-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.dish-cuisine{font-size:0.75rem;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px}
+.dish-rating{font-size:0.85rem;font-weight:600}
+.dish-name{font-size:1.5rem;margin-bottom:12px}
+.dish-desc{font-size:0.9rem;color:var(--text2);margin-bottom:24px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.btn-view{
+  width:100%;padding:12px;border:1px solid var(--border2);
+  border-radius:var(--r);font-weight:600;font-size:0.9rem;
+}
+.dish-card:hover .btn-view{background:var(--gold);color:#000;border-color:var(--gold)}
+
+/* ═══ MODAL ═══ */
+.modal{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(9,9,11,0.95);backdrop-filter:blur(12px);
+  display:none;padding:40px 5%;overflow-y:auto;
+}
+.modal.open{display:block}
+.modal-content{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1.2fr;gap:60px}
+.modal-close{position:fixed;top:40px;right:40px;font-size:2rem;color:var(--text2)}
+.recipe-img{width:100%;border-radius:var(--r-lg);box-shadow:0 30px 60px rgba(0,0,0,0.5)}
+.recipe-head{margin-bottom:40px}
+.recipe-title{font-size:4rem;margin-bottom:16px}
+.recipe-meta{display:flex;gap:24px;color:var(--text2);font-size:1rem}
+.recipe-section{margin-bottom:48px}
+.recipe-section h3{font-size:1.8rem;margin-bottom:24px;color:var(--gold)}
+.ing-list{list-style:none}
+.ing-item{padding:12px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between}
+.ing-name{font-weight:500}
+.ing-amt{color:var(--text2)}
+.step-item{margin-bottom:32px;display:flex;gap:24px}
+.step-num{
+  width:40px;height:40px;background:var(--gold-dim);color:var(--gold);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-weight:900;flex-shrink:0;
+}
+.step-text{font-size:1.1rem;color:var(--text2)}
+
+/* ═══ FOOTER ═══ */
+footer{padding:80px 5%;background:var(--bg2);border-top:1px solid var(--border)}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:60px}
+.footer-logo{margin-bottom:24px}
+.footer-desc{color:var(--text2);max-width:300px}
+.footer-head{font-family:'Playfair Display',serif;font-size:1.2rem;margin-bottom:24px}
+.footer-links{list-style:none}
+.footer-link{margin-bottom:12px;color:var(--text2);font-size:0.9rem}
+.footer-link:hover{color:var(--gold)}
+
+@media(max-width:900px){
+  .modal-content{grid-template-columns:1fr}
+  .footer-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<nav>
+  <a href="#" class="logo">Flavor<span>World</span></a>
+  <div class="nav-links">
+    <a href="#" class="nav-link active">Home</a>
+    <a href="#dishes" class="nav-link">Recipes</a>
+    <a href="#about" class="nav-link">About</a>
+    <a href="admin.html" class="btn-admin">Admin Panel</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <span class="hero-tag">Cinematic Recipe Platform</span>
+    <h1>Taste Every Corner of Earth.</h1>
+    <p>Explore thousands of authentic recipes from around the globe, curated for the modern chef. From street food to fine dining.</p>
+    <div class="hero-btns">
+      <a href="#dishes" class="btn-hero primary">Explore Recipes</a>
+      <a href="#" class="btn-hero outline">Watch Trailer</a>
+    </div>
+  </div>
+</section>
+
+<section id="dishes">
+  <div class="section-head">
+    <div class="section-title">
+      <h2>Global Kitchen</h2>
+      <p>Handpicked delicacies from across the continents</p>
+    </div>
+    <div class="section-filters">
+      <!-- Filter logic can be added here -->
+    </div>
+  </div>
+  <div class="dishes-grid" id="dishesGrid">
+    <!-- Dishes will be injected here -->
+  </div>
+</section>
+
+<div class="modal" id="recipeModal">
+  <button class="modal-close" onclick="closeRecipe()">✕</button>
+  <div class="modal-content" id="recipeContent">
+    <!-- Recipe content will be injected here -->
+  </div>
+</div>
+
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="logo footer-logo">Flavor<span>World</span></div>
+      <p class="footer-desc">A cinematic culinary journey through the world's most iconic flavors. Join us in exploring the art of cooking.</p>
+    </div>
+    <div>
+      <h3 class="footer-head">Explore</h3>
+      <ul class="footer-links">
+        <li class="footer-link"><a href="#">All Recipes</a></li>
+        <li class="footer-link"><a href="#">Cuisines</a></li>
+        <li class="footer-link"><a href="#">Categories</a></li>
+        <li class="footer-link"><a href="#">Trending</a></li>
+      </ul>
+    </div>
+    <div>
+      <h3 class="footer-head">Community</h3>
+      <ul class="footer-links">
+        <li class="footer-link"><a href="#">Chef Stories</a></li>
+        <li class="footer-link"><a href="#">Cooking Tips</a></li>
+        <li class="footer-link"><a href="#">Events</a></li>
+        <li class="footer-link"><a href="#">Newsletter</a></li>
+      </ul>
+    </div>
+    <div>
+      <h3 class="footer-head">Support</h3>
+      <ul class="footer-links">
+        <li class="footer-link"><a href="#">Help Center</a></li>
+        <li class="footer-link"><a href="#">Privacy Policy</a></li>
+        <li class="footer-link"><a href="#">Terms of Use</a></li>
+        <li class="footer-link"><a href="#">Contact Us</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<script>
+let dishes = [];
+
+async function buildDishes() {
+  const grid = document.getElementById('dishesGrid');
+  const data = window.FIREBASE_DISHES || [];
+  dishes = data;
+  grid.innerHTML = '';
+  
+  if(data.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:100px;color:var(--text3)">No recipes found. Add some in the admin panel!</div>';
+    return;
+  }
+
+  data.forEach(d => {
+    const card = document.createElement('div');
+    card.className = 'dish-card';
+    card.innerHTML = `
+      <div class="dish-img-wrap">
+        <img src="${d.image}" class="dish-img" onerror="this.src='https://via.placeholder.com/600x400?text=No+Image'"/>
+        <span class="dish-cat">${d.category}</span>
+      </div>
+      <div class="dish-body">
+        <div class="dish-meta">
+          <span class="dish-cuisine">${d.cuisine}</span>
+          <span class="dish-rating">⭐ ${d.rating}</span>
+        </div>
+        <h3 class="dish-name">${d.name}</h3>
+        <p class="dish-desc">${d.desc || 'No description available.'}</p>
+        <button class="btn-view" onclick="openRecipe(${d.id})">View Full Recipe</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function openRecipe(id) {
+  const d = dishes.find(x => x.id == id);
+  if(!d) return;
+  const modal = document.getElementById('recipeModal');
+  const content = document.getElementById('recipeContent');
+  
+  content.innerHTML = `
+    <div class="recipe-visual">
+      <img src="${d.image}" class="recipe-img" onerror="this.src='https://via.placeholder.com/800x600?text=No+Image'"/>
+    </div>
+    <div class="recipe-details">
+      <div class="recipe-head">
+        <h1 class="recipe-title">${d.name}</h1>
+        <div class="recipe-meta">
+          <span>🌍 ${d.cuisine}</span>
+          <span>🗂️ ${d.category}</span>
+          <span>⭐ ${d.rating}</span>
+        </div>
+      </div>
+      
+      <div class="recipe-section">
+        <h3>Ingredients</h3>
+        <ul class="ing-list">
+          ${d.ingredients?.map(i => `
+            <li class="ing-item">
+              <span class="ing-name">${i.name}</span>
+              <span class="ing-amt">${i.amount} ${i.unit}</span>
+            </li>
+          `).join('') || '<li>No ingredients listed.</li>'}
+        </ul>
+      </div>
+      
+      <div class="recipe-section">
+        <h3>Preparation</h3>
+        <div class="steps-list">
+          ${d.steps?.map((s, i) => `
+            <div class="step-item">
+              <div class="step-num">${i + 1}</div>
+              <div class="step-text">${s}</div>
+            </div>
+          `).join('') || '<p>No steps listed.</p>'}
+        </div>
+      </div>
+    </div>
+  `;
+  
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeRecipe() {
+  document.getElementById('recipeModal').classList.remove('open');
+  document.body.style.overflow = 'auto';
+}
+
+function buildFeatured() {
+  // Logic for featured section if needed
+}
+</script>
+</body>
+</html>
